@@ -17,8 +17,8 @@ newCommitsCount="$(curl -I -k \
                 sed -n '/^[Ll]ink:/ s/.*"next".*page=\([0-9]*\).*"last".*/\1/p')"
 
 oldCommitDate="$(sed -n 's/.*commit_date \(.*\)/\1/p' hyprland-git.spec)"
-newCommitDate="$(env TZ=Etc/GMT+12 date -d "$(curl -s "https://api.github.com/repos/hyprwm/Hyprland/commits?per_page=1&ref=$newHyprlandCommit" | \
-                jq -r '.[].commit.author.date')" +"%a %b %d %T %Y")"
+newCommitDate="$(date -d "$(curl -s "https://api.github.com/repos/hyprwm/Hyprland/commits?per_page=1&ref=$newHyprlandCommit" | \
+                jq -r '.[].commit.committer.date')" +"%a %b %d %T %Y")"
 
 oldProtocolsCommit="$(sed -n 's/.*protocols_commit \(.*\)/\1/p' hyprland-git.spec)"
 newProtocolsCommit="$(curl -L \
