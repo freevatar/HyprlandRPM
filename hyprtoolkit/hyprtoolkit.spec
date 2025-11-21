@@ -1,5 +1,5 @@
 Name:           hyprtoolkit
-Version:        0.2.0
+Version:        0.3.0
 Release:        %autorelease
 Summary:        A modern C++ Wayland-native GUI toolkit
 
@@ -21,7 +21,6 @@ BuildRequires:  pkgconfig(gbm)
 BuildRequires:  pkgconfig(hyprgraphics)
 BuildRequires:  pkgconfig(hyprlang)
 BuildRequires:  pkgconfig(hyprutils)
-BuildRequires:  pkgconfig(hyprutils)
 BuildRequires:  pkgconfig(iniparser)
 BuildRequires:  pkgconfig(libdrm)
 BuildRequires:  pkgconfig(pango)
@@ -29,6 +28,7 @@ BuildRequires:  pkgconfig(pixman-1)
 BuildRequires:  pkgconfig(wayland-client)
 BuildRequires:  pkgconfig(wayland-protocols)
 BuildRequires:  pkgconfig(xkbcommon)
+BuildRequires:  gtest-devel
 
 %description
 %{summary}.
