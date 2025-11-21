@@ -1,11 +1,10 @@
-Name:           hyprland-qtutils
-Version:        0.1.5
-Release:        %autorelease -b3
+Name:           hyprland-guiutils
+Version:        0.1.0
+Release:        %autorelease
 Summary:        Hyprland Qt/qml utility apps
 License:        BSD-3-Clause
-URL:            https://github.com/hyprwm/hyprland-qtutils
+URL:            https://github.com/hyprwm/hyprland-guiutils
 Source:         %{url}/archive/v%{version}/%{name}-%{version}.tar.gz
-Patch:          fix-build.diff
 
 # https://fedoraproject.org/wiki/Changes/EncourageI686LeafRemoval
 ExcludeArch:    %{ix86}
@@ -18,7 +17,10 @@ BuildRequires:  cmake(Qt6QuickControls2)
 BuildRequires:  cmake(Qt6WaylandClient)
 BuildRequires:  cmake(Qt6Widgets)
 BuildRequires:  qt6-qtbase-private-devel
-
+BuildRequires:  pkgconfig(hyprlang)
+BuildRequires:  pkgconfig(hyprtoolkit)
+BuildRequires:  pkgconfig(pixman-1)
+BuildRequires:  pkgconfig(libdrm)
 BuildRequires:  pkgconfig(hyprutils)
 BuildRequires:  wayland-devel
 
@@ -28,7 +30,7 @@ Requires:       hyprland-qt-support%{?_isa}
 %{summary}.
 
 %prep
-%autosetup -p1
+%autosetup
 
 %build
 %cmake
