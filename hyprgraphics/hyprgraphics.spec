@@ -1,6 +1,6 @@
 Name:           hyprgraphics
-Version:        0.2.0
-Release:        %autorelease -b11
+Version:        0.3.0
+Release:        %autorelease
 Summary:        Hyprland graphics / resource utilities
 
 License:        BSD-3-Clause
@@ -16,7 +16,7 @@ BuildRequires:  gcc-c++
 BuildRequires:  pkgconfig(cairo)
 BuildRequires:  pkgconfig(hyprutils)
 BuildRequires:  pkgconfig(libjpeg)
-%if 0%{?fedora} >= 41
+%if 0%{?fedora} >= 43
 BuildRequires:  pkgconfig(libjxl_cms)
 BuildRequires:  pkgconfig(libjxl_threads)
 BuildRequires:  pkgconfig(libjxl)
@@ -56,7 +56,7 @@ Development files for %{name}.
 %files
 %license LICENSE
 %doc README.md
-%{_libdir}/lib%{name}.so.1
+%{_libdir}/lib%{name}.so.2
 %{_libdir}/lib%{name}.so.%{version}
 
 %files devel
