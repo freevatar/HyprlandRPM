@@ -11,7 +11,7 @@ jobs:
     permissions:
       contents: write
     container:
-      image: 'registry.fedoraproject.org/fedora-minimal:latest'
+      image: 'registry.fedoraproject.org/fedora-minimal:43'
 
     steps:
       - name: Prepare

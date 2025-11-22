@@ -9,10 +9,10 @@ oldTag="$(rpmspec -q --qf "%{version}\n" hyprland-git.spec | head -1 | sed 's/\^
 newTag="$(curl "https://api.github.com/repos/hyprwm/Hyprland/tags" | jq -r '.[0].name' | sed 's/^v//')"
 
 oldHyprlandCommit="$(sed -n 's/.*hyprland_commit \(.*\)/\1/p' hyprland-git.spec)"
-newHyprlandCommit="$(curl -s -H "Accept: application/vnd.github.VERSION.sha" "https://api.github.com/repos/hyprwm/Hyprland/commits/main")"
+newHyprlandCommit="$(curl -s -H "Accept: application/vnd.github.sha" "https://api.github.com/repos/hyprwm/Hyprland/commits/main")"
 
 oldCommitsCount="$(sed -n 's/.*commits_count \(.*\)/\1/p' hyprland-git.spec)"
-newCommitsCount="$(curl -I -k \
+newCommitsCount="$(curl -I \
                 "https://api.github.com/repos/hyprwm/Hyprland/commits?per_page=1&sha=$newHyprlandCommit" | \
                 sed -n '/^[Ll]ink:/ s/.*"next".*page=\([0-9]*\).*"last".*/\1/p')"
 
