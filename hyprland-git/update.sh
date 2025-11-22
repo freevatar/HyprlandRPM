@@ -53,14 +53,12 @@ git diff --quiet || \
 { perl -pe 's/(?<=bumpver\s)(\d+)/$1 + 1/ge' -i hyprland-git.spec && \
 git commit -am "up rev hyprland-git-${newTag}+${newHyprlandCommit:0:7}" && \
 git push && \
-hyprlandGitBuildId=$(curl "${curl_opts[@]}" "https://copr.fedorainfracloud.org/webhooks/custom/77569/${COPR_WEBHOOK}/hyprland-git") && \
-copr watch-build "${hyprlandGitBuildId}" && \
-curl "${curl_opts[@]}" "https://copr.fedorainfracloud.org/webhooks/custom/77569/${COPR_WEBHOOK}/hyprland-plugins-git"; }
+hyprlandGitBuildId=$(curl "${curl_opts[@]}" "https://copr.fedorainfracloud.org/webhooks/custom/207003/${COPR_WEBHOOK}/hyprland-git") && \
+copr watch-build "${hyprlandGitBuildId}"; }
 
 if [[ $newRelease == "1" ]]; then
-    hyprlandBuildId=$(curl "${curl_opts[@]}" "https://copr.fedorainfracloud.org/webhooks/custom/77569/${COPR_WEBHOOK}/hyprland")
+    hyprlandBuildId=$(curl "${curl_opts[@]}" "https://copr.fedorainfracloud.org/webhooks/custom/207003/${COPR_WEBHOOK}/hyprland")
     copr watch-build "${hyprlandBuildId}"
-    curl "${curl_opts[@]}" "https://copr.fedorainfracloud.org/webhooks/custom/77569/${COPR_WEBHOOK}/hyprland-plugins"
     git branch "$newTag"
     git push origin "$newTag"
 fi
