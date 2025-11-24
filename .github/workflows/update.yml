@@ -23,7 +23,8 @@ jobs:
 
       - name: Run updaters
         env:
-          COPR_WEBHOOK: ${{ secrets.COPR_WEBHOOK }}
+          COPR_WEBHOOK_ID: ${{ secrets.COPR_WEBHOOK_ID }}
+          COPR_WEBHOOK_TOKEN: ${{ secrets.COPR_WEBHOOK_TOKEN }}
         run: |
           git config --global --add safe.directory "$GITHUB_WORKSPACE"
           git config --local user.name "github-actions[bot]"

@@ -20,7 +20,7 @@ newCommitsCount="$(curl -I \
                 sed -n '/^[Ll]ink:/ s/.*"next".*page=\([0-9]*\).*"last".*/\1/p')"
 
 oldCommitDate="$(sed -n 's/.*commit_date \(.*\)/\1/p' hyprland-git.spec)"
-newCommitDate="$(date -d "$(curl -s "https://api.github.com/repos/hyprwm/Hyprland/commits?per_page=1&ref=${newHyprlandCommit}" | \
+newCommitDate="$(TZ=America/New_York date -d "$(curl -s "https://api.github.com/repos/hyprwm/Hyprland/commits?per_page=1&ref=${newHyprlandCommit}" | \
                 jq -r '.[].commit.committer.date')" +"%a %b %d %T %Y")"
 
 oldProtocolsCommit="$(sed -n 's/.*protocols_commit \(.*\)/\1/p' hyprland-git.spec)"
@@ -79,8 +79,5 @@ if ! git diff --quiet; then
     if [[ "${newRelease}" == "1" ]]; then
         hyprlandBuildId=$(curl "${curl_opts[@]}" "https://copr.fedorainfracloud.org/webhooks/custom/${COPR_WEBHOOK_ID}/${COPR_WEBHOOK_TOKEN}/hyprland")
         copr watch-build "${hyprlandBuildId}"
-
-        git branch "${newTag}"
-        git push origin "${newTag}"
     fi
 fi
