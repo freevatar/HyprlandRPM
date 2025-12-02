@@ -45,13 +45,13 @@ def _add_initial_build_number(match: Match[str], spec_path: Path) -> str:
     """
     Regex callback used when there is a plain "%autorelease" line
         with no "-bN"
-    Appends " -b1"
+    Appends " -b2"
     Example:
-        "Release: %autorelease" -> "Release: %autorelease -b1"
+        "Release: %autorelease" -> "Release: %autorelease -b2"
     """
     release_line = match.group("release_line")
-    print(f"{spec_path}: adding -b1 to %autorelease")
-    return f"{release_line} -b1"
+    print(f"{spec_path}: adding -b2 to %autorelease")
+    return f"{release_line} -b2"
 
 
 def bump_autorelease_in_spec_file(spec_file_path: Path) -> None:
@@ -68,7 +68,7 @@ def bump_autorelease_in_spec_file(spec_file_path: Path) -> None:
         count=1,
     )
 
-    # If there's no "-bN", add "-b1"
+    # If there's no "-bN", add "-b2"
     if substitutions == 0:
 
         def replace_plain_autorelease(match: Match[str]) -> str:
