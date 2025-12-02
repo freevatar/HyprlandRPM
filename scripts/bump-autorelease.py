@@ -11,7 +11,7 @@ Captures two groups:
     - 'build_number' : numeric build number N
 """
 AUTORELEASE_WITH_BUILD_PATTERN = re.compile(
-    r"(?P<prefix>^Release:\s*%autorelease\s+-b\s*)(?P<num>\d+)",
+    r"(?P<prefix>^Release:\s*%autorelease\s+-b\s*)(?P<build_number>\d+)",
     re.MULTILINE,
 )
 
@@ -21,7 +21,7 @@ Captures one group:
     - 'release_line' : full matching line
 """
 AUTORELEASE_PLAIN_PATTERN = re.compile(
-    r"(^Release:\s*%autorelease\s*)$",
+    r"(?P<release_line>^Release:\s*%autorelease\s*)$",
     re.MULTILINE,
 )
 

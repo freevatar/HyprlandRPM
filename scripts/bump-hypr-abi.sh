@@ -28,4 +28,4 @@ fi
 echo "Marking ABI-dependent specs for rebuild:"
 printf '  %s\n' "${specs[@]}"
 
-./scripts/bump-autorelease-b.py "${specs[@]}"
+./scripts/bump-autorelease.py "${specs[@]}"
