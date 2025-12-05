@@ -88,12 +88,10 @@ hyprdeps = {
     "pkgconfig(xcb-xinput)",
     "pkgconfig(xcb)",
     "pkgconfig(xcursor)",
-    "pkgconfig(xwayland)",
+    "pkgconfig(xkbcommon)",
+    "pkgconfig(xwayland)"
     }
 }
-%if 0%{?fedora} > 42
-BuildRequires:  pkgconfig(xkbcommon)
-%endif
 
 %define printbdeps(r) %{lua:
 for _, dep in ipairs(hyprdeps) do
@@ -109,27 +107,16 @@ BuildRequires:  gcc-toolset-15-gcc-c++
 BuildRequires:  gcc-toolset-15-annobin-plugin-gcc
 %endif
 
-%if 0%{?fedora} < 43
-BuildRequires:  byacc flex bison
-BuildRequires:  xorg-x11-proto-devel libX11-devel
-BuildRequires:  xkeyboard-config-devel
-BuildRequires:  pkgconfig(xcb-xkb)
-BuildRequires:  libxml2-devel
-%endif
-
 # udis86 is packaged in Fedora, but the copy bundled here is actually a
 # modified fork.
 Provides:       bundled(udis86) = 1.7.2^1.%{udis86_shortcommit}
-%if 0%{?fedora} < 43
-Provides:       bundled(libxkbcommon) = %{libxkbcommon_version}
-%endif
 
 Requires:       xorg-x11-server-Xwayland%{?_isa}
-Requires:       aquamarine%{?_isa} >= 0.9.2
+Requires:       aquamarine%{?_isa} >= 0.9.3
 Requires:       hyprcursor%{?_isa} >= 0.1.13
 Requires:       hyprgraphics%{?_isa} >= 0.1.6
-Requires:       hyprlang%{?_isa} >= 0.6.3
-Requires:       hyprutils%{?_isa} >= 0.8.4
+Requires:       hyprlang%{?_isa} >= 0.6.7
+Requires:       hyprutils%{?_isa} >= 0.10.3
 
 %{lua:do
 if string.match(rpm.expand('%{name}'), '%-git$') then
@@ -201,10 +188,6 @@ Requires:       pkgconfig(xkbcommon)
 
 %prep
 %autosetup -n %{?bumpver:Hyprland-%{hyprland_commit}} %{!?bumpver:hyprland-source} -N
-%if 0%{?fedora} < 43
-mkdir -p subprojects/libxkbcommon
-tar -xf %{SOURCE5} -C subprojects/libxkbcommon --strip=1
-%endif
 
 %if 0%{?bumpver}
 tar -xf %{SOURCE2} -C subprojects/hyprland-protocols --strip=1
@@ -230,16 +213,6 @@ sed -i \
 
 %if 0%{?rhel} == 10
 source /usr/lib/gcc-toolset/15-env.source
-%endif
-
-%if 0%{?fedora} < 43
-pushd subprojects/libxkbcommon > /dev/5336633af70f3917760a6d441ff02d93477b0c86
-%meson -Denable-tools=false -Ddefault_library=static
-%meson_build
-DESTDIR=%{_builddir}/libxkbcommon-build meson install -C %{_vpath_builddir} --no-rebuild
-popd > /dev/5336633af70f3917760a6d441ff02d93477b0c86
-export PKG_CONFIG_PATH=%{_builddir}/libxkbcommon-build/%{_libdir}/pkgconfig
-%global optflags %{optflags} -I%{_builddir}/libxkbcommon-build/%{_includedir} -L%{_builddir}/libxkbcommon-build/%{_libdir}
 %endif
 
 %cmake \
