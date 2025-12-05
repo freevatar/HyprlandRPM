@@ -266,6 +266,7 @@ install -Dpm644 %{SOURCE4} -t %{buildroot}%{_rpmconfigdir}/macros.d
 %{_bindir}/hyprctl
 %{_bindir}/hyprpm
 %{_datadir}/hypr/
+%{_bindir}/start-hyprland
 %{_datadir}/wayland-sessions/hyprland.desktop
 %{_datadir}/xdg-desktop-portal/hyprland-portals.conf
 %{_mandir}/man1/hyprctl.1*
