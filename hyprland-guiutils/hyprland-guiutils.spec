@@ -45,6 +45,8 @@ Requires:       hyprland-qt-support%{?_isa}
 %{_bindir}/hyprland-dialog
 %{_bindir}/hyprland-donate-screen
 %{_bindir}/hyprland-update-screen
+%{_bindir}/hyprland-run
+%{_bindir}/hyprland-welcome
 
 %changelog
 %autochangelog
