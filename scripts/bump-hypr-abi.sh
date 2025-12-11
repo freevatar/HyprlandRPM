@@ -4,19 +4,20 @@ set -euo pipefail
 # Mark all spec files that depend on a given pkgconfig() name for rebuild
 #   after an ABI-breaking update.
 
-if (($# != 1)); then
-  printf 'Usage: %s <pkgconfig-name>\n' "${0##*/}" >&2
+if (($# < 1)); then
+  printf 'Usage: %s <pkgconfig-name> [up]\n' "${0##*/}" >&2
   exit 1
 fi
 
-readonly pkg="$1"
+readonly package_name="$1"
+readonly do_update="${2:-skip}"
 
-printf '"%s" update changed ABI.\n\n' "${pkg}"
+printf '"%s" update changed ABI.\n\n' "${package_name}"
 
 # Find all spec files affected by the ABI change
 #   i.e. those referencing pkgconfig(<pkg>)
 mapfile -t specs < <(
-  grep -rlE "pkgconfig\(${pkg}\)" \
+  grep -rl "pkgconfig(${package_name})" \
        --include='*.spec' .
 )
 
@@ -28,4 +29,6 @@ fi
 echo "Marking ABI-dependent specs for rebuild:"
 printf '  %s\n' "${specs[@]}"
 
-./scripts/bump-autorelease.py "${specs[@]}"
+if [[ "${do_update}" == "up" ]]; then
+    ./scripts/bump-autorelease.py "${specs[@]}"
+fi
