@@ -1,13 +1,13 @@
 %global hyprland_commit 60efbf3f63bec3100477ea9ba6cd634e35d5aeaa
 %global hyprland_shortcommit %(c=%{hyprland_commit}; echo ${c:0:7})
-%global bumpver 45
+%global bumpver 46
 %global commits_count 6739
 %global commit_date Sun Dec 21 17:50:53 2025
 
 %global protocols_commit 3a5c2bda1c1a4e55cc1330c782547695a93f05b2
 %global protocols_shortcommit %(c=%{protocols_commit}; echo ${c:0:7})
 
-%global udis86_commit 3a5c2bda1c1a4e55cc1330c782547695a93f05b2
+%global udis86_commit 5336633af70f3917760a6d441ff02d93477b0c86
 %global udis86_shortcommit %(c=%{udis86_commit}; echo ${c:0:7})
 
 %global libxkbcommon_version 1.11.0
