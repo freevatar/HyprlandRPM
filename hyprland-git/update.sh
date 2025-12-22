@@ -27,21 +27,22 @@ oldProtocolsCommit="$(sed -n 's/.*protocols_commit \(.*\)/\1/p' hyprland-git.spe
 newProtocolsCommit="$(curl -L \
             -H "Accept: application/vnd.github+json" \
             -H "X-GitHub-Api-Version: 2022-11-28" \
-            "https://api.github.com/repos/hyprwm/Hyprland/contents/subprojects/hyprland-protocols?ref=${newHyprlandCommit}" | jq -r '.sha')"
+            "https://api.github.com/repos/hyprwm/Hyprland/contents/subprojects/hyprland-protocols?ref=${newHyprlandCommit}" | jq -re '.sha')"
 
 oldUdis86Commit="$(sed -n 's/.*udis86_commit \(.*\)/\1/p' hyprland-git.spec)"
 newUdis86Commit="$(curl -L \
             -H "Accept: application/vnd.github+json" \
             -H "X-GitHub-Api-Version: 2022-11-28" \
-            "https://api.github.com/repos/hyprwm/Hyprland/contents/subprojects/udis86?ref=${newHyprlandCommit}" | jq -r '.sha')"
+            "https://api.github.com/repos/hyprwm/Hyprland/contents/subprojects/udis86?ref=${newHyprlandCommit}" | jq -re '.sha')"
 
 # Update GIT_SPEC
-sed -e "s/${oldHyprlandCommit}/${newHyprlandCommit}/" \
-    -e "/^%global commits_count/s/${oldCommitsCount}/${newCommitsCount}/" \
-    -e "s/${oldCommitDate}/${newCommitDate}/" \
-    -e "s/${oldProtocolsCommit}/${newProtocolsCommit}/" \
-    -e "s/${oldUdis86Commit}/${newUdis86Commit}/" \
-    -i "${GIT_SPEC}"
+sed -i \
+  -e "s/^\(%global[[:space:]]\+hyprland_commit\)[[:space:]]\+.*/\1 ${newHyprlandCommit}/" \
+  -e "s/^\(%global[[:space:]]\+commits_count\)[[:space:]]\+.*/\1 ${newCommitsCount}/" \
+  -e "s/^\(%global[[:space:]]\+commit_date\)[[:space:]]\+.*/\1 ${newCommitDate}/" \
+  -e "s/^\(%global[[:space:]]\+protocols_commit\)[[:space:]]\+.*/\1 ${newProtocolsCommit}/" \
+  -e "s/^\(%global[[:space:]]\+udis86_commit\)[[:space:]]\+.*/\1 ${newUdis86Commit}/" \
+  "${GIT_SPEC}"
 
 # Detect new upstream release tag
 rpmdev-vercmp "${oldTag}" "${newTag}" || ec=$?
