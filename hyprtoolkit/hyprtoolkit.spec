@@ -1,6 +1,6 @@
 Name:           hyprtoolkit
-Version:        0.4.1
-Release:        %autorelease -b3
+Version:        0.5.2
+Release:        %autorelease
 Summary:        A modern C++ Wayland-native GUI toolkit
 
 License:        BSD-3-Clause
