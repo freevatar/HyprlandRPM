@@ -1,6 +1,6 @@
 %global hyprland_commit 64db62d7e2685d62cbab51a1a7cb7f2cf38a1b32
 %global hyprland_shortcommit %(c=%{hyprland_commit}; echo ${c:0:7})
-%global bumpver 30
+%global bumpver 1
 %global commits_count 6832
 %global commit_date Thu Jan 22 15:33:36 2026
 
@@ -13,7 +13,7 @@
 %global libxkbcommon_version 1.11.0
 
 Name:           hyprland-git
-Version:        0.53.1%{?bumpver:^%{bumpver}.git%{hyprland_shortcommit}}
+Version:        0.53.2%{?bumpver:^%{bumpver}.git%{hyprland_shortcommit}}
 Release:        %autorelease -b5
 Summary:        Dynamic tiling Wayland compositor that doesn't sacrifice on its looks
 
