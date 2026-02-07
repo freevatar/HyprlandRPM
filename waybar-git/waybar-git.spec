@@ -1,11 +1,11 @@
 %bcond wireplumber %[0%{?fedora} > 39]
 
-%global commit0 a8bbc90efecce06d0979d7b93456ab9a5808ca66
+%global commit0 90b209add8937514d0a987aa842e701bd8f1232e
 %global shortcommit0 %(c=%{commit0}; echo ${c:0:7})
-%global bumpver 16
+%global bumpver 1
 
 Name:           waybar-git
-Version:        0.14.0%{?bumpver:^%{bumpver}.git%{shortcommit0}}
+Version:        0.15.0%{?bumpver:^%{bumpver}.git%{shortcommit0}}
 Release:        1%{?dist}
 Summary:        Highly customizable Wayland bar for Sway and Wlroots based compositors, with workspaces support for Hyprland
 # Source files/overall project licensed as MIT, but
