@@ -1,6 +1,6 @@
-%global commit0 36b79e54887b9a8a1211a327f1653c6308a52a16
+%global commit0 918f266dddae39fa4184a1b8bf51ec5381cf29f7
 %global shortcommit0 %(c=%{commit0}; echo ${c:0:7})
-%global bumpver 88
+%global bumpver 89
 
 Name:           hyprland-contrib
 Version:        0.1%{?bumpver:^%{bumpver}.git%{shortcommit0}}
