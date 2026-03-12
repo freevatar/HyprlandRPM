@@ -27,6 +27,7 @@ hyprdeps = {
     "pkgconfig(egl)",
     "pkgconfig(gbm)",
     "pkgconfig(gio-2.0)",
+    "pkgconfig(glslang)",
     "pkgconfig(glesv2)",
     "pkgconfig(hwdata)",
     "pkgconfig(hyprcursor)",
