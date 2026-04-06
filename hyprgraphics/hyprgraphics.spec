@@ -14,6 +14,9 @@ BuildRequires:  cmake
 BuildRequires:  gcc-c++
 
 BuildRequires:  pkgconfig(cairo)
+BuildRequires:  pkgconfig(libdrm)
+BuildRequires:  pkgconfig(egl)
+BuildRequires:  pkgconfig(glesv2)
 BuildRequires:  pkgconfig(hyprutils)
 BuildRequires:  pkgconfig(libjpeg)
 %if 0%{?fedora} >= 43
