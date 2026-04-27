@@ -5,7 +5,6 @@ Summary:        An application to display information about the running system
 License:        BSD-3-Clause
 URL:            https://github.com/hyprwm/hyprsysteminfo
 Source:         %{url}/archive/v%{version}/%{name}-%{version}.tar.gz
-Patch:          fix-build.diff
 
 # https://fedoraproject.org/wiki/Changes/EncourageI686LeafRemoval
 ExcludeArch:    %{ix86}
@@ -13,19 +12,15 @@ ExcludeArch:    %{ix86}
 BuildRequires:  cmake
 BuildRequires:  desktop-file-utils
 BuildRequires:  gcc-c++
+BuildRequires:  pkgconf-pkg-config
+BuildRequires:  glaze-static
+BuildRequires:  pkgconfig(hyprtoolkit)
+BuildRequires:  pkgconfig(hyprutils) >= 0.10.2
+BuildRequires:  pkgconfig(libdrm)
+BuildRequires:  pkgconfig(libpci)
+BuildRequires:  pkgconfig(pixman-1)
 
-BuildRequires:  cmake(Qt6Quick)
-BuildRequires:  cmake(Qt6QuickControls2)
-BuildRequires:  cmake(Qt6WaylandClient)
-BuildRequires:  cmake(Qt6Widgets)
-BuildRequires:  qt6-qtbase-private-devel
-BuildRequires:  wayland-devel
-BuildRequires:  pkgconfig(hyprutils)
-
-Requires:       /usr/bin/lscpu
-Requires:       /usr/bin/lspci
-Requires:       /usr/bin/free
-Requires:       hyprland-qt-support%{?_isa}
+Requires:       /usr/bin/wl-copy
 
 %description
 A tiny qt6/qml application to display information about the running system,
