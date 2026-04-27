@@ -64,6 +64,7 @@ hyprdeps = {
     "pkgconfig(libliftoff)",
     "pkgconfig(libseat)",
     "pkgconfig(libudev)",
+    "pkgconfig(lua)",
     "pkgconfig(pango)",
     "pkgconfig(pangocairo)",
     "pkgconfig(pixman-1)",
@@ -202,6 +203,12 @@ sed -e '/GIT_COMMIT_HASH/s/unknown/%{hyprland_commit}/' \
     -e '/GIT_COMMITS/s/0/%{commits_count}/' \
     -i CMakeLists.txt
 %endif
+
+# Temporary workaround
+# Fedora 43 still ships Lua 5.4
+# Upstream Hyprland requests Lua 5.5
+# Drop this once building against Lua 5.5 is available
+sed -i -e '/pkg_check_modules(/,/)/s|\<lua55\>|lua|g' CMakeLists.txt
 
 cp -p subprojects/hyprland-protocols/LICENSE LICENSE-hyprland-protocols
 cp -p subprojects/udis86/LICENSE LICENSE-udis86
