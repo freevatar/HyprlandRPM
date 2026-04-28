@@ -7,15 +7,19 @@ License:        BSD-3-Clause
 URL:            https://github.com/hyprwm/hyprtoolkit
 Source:         %{url}/archive/v%{version}/%{name}-%{version}.tar.gz
 
+# ToDo: Remove after next upstream release
+Patch0:         https://github.com/hyprwm/hyprtoolkit/commit/7c41a2729335e146cea4bdd8843aea0e5c146aba.patch
+
+
 # https://fedoraproject.org/wiki/Changes/EncourageI686LeafRemoval
 ExcludeArch:    %{ix86}
 
 BuildRequires:  cmake
 BuildRequires:  cmake(hyprwayland-scanner)
 BuildRequires:  gcc-c++
-BuildRequires:  mesa-libEGL-devel
 BuildRequires:  ninja-build
 BuildRequires:  pkgconfig(aquamarine)
+BuildRequires:  pkgconfig(cairo)
 BuildRequires:  pkgconfig(egl)
 BuildRequires:  pkgconfig(gbm)
 BuildRequires:  pkgconfig(hyprgraphics)
@@ -24,11 +28,12 @@ BuildRequires:  pkgconfig(hyprutils)
 BuildRequires:  pkgconfig(iniparser)
 BuildRequires:  pkgconfig(libdrm)
 BuildRequires:  pkgconfig(pango)
+BuildRequires:  pkgconfig(pangocairo)
 BuildRequires:  pkgconfig(pixman-1)
 BuildRequires:  pkgconfig(wayland-client)
 BuildRequires:  pkgconfig(wayland-protocols)
+BuildRequires:  pkgconfig(wayland-scanner)
 BuildRequires:  pkgconfig(xkbcommon)
-BuildRequires:  gtest-devel
 
 %description
 %{summary}.
@@ -39,11 +44,21 @@ Requires:       %{name}%{?_isa} = %{version}-%{release}
 Requires:       pkgconfig(aquamarine)
 Requires:       pkgconfig(cairo)
 Requires:       pkgconfig(hyprgraphics)
+Requires:       pkgconfig(hyprlang)
+Requires:       pkgconfig(hyprutils)
+Requires:       pkgconfig(pango)
+Requires:       pkgconfig(pangocairo)
+
 %description    devel
 Development files for %{name}.
 
 %prep
-%autosetup -p1
+%autosetup -p1 -N
+
+# ToDo: Remove after next upstream release
+%if 0%{?fedora} >= 44
+%autopatch -p1
+%endif
 
 %build
 %cmake -GNinja \
