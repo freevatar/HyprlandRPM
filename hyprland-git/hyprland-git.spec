@@ -1,8 +1,8 @@
-%global hyprland_commit 98fbbafef78057c818fb02b15c27e38ad2f5b5bc
+%global hyprland_commit 94b90a2cb0b4a0e13018cd5ebbf09394abf3b96b
 %global hyprland_shortcommit %(c=%{hyprland_commit}; echo ${c:0:7})
-%global bumpver 47
-%global commits_count 7198
-%global commit_date Tue Apr 28 10:56:07 2026
+%global bumpver 48
+%global commits_count 7204
+%global commit_date Tue Apr 28 13:10:25 2026
 
 %global protocols_commit 3a5c2bda1c1a4e55cc1330c782547695a93f05b2
 %global protocols_shortcommit %(c=%{protocols_commit}; echo ${c:0:7})
@@ -14,7 +14,7 @@
 
 Name:           hyprland-git
 Version:        0.54.3%{?bumpver:^%{bumpver}.git%{hyprland_shortcommit}}
-Release:        %autorelease -b2
+Release:        %autorelease -b3
 Summary:        Dynamic tiling Wayland compositor that doesn't sacrifice on its looks
 
 # hyprland: BSD-3-Clause
@@ -38,12 +38,12 @@ Source5:        https://github.com/xkbcommon/libxkbcommon/archive/xkbcommon-%{li
 
 %{lua:
 hyprdeps = {
-    "cmake",
+    "cmake >= 3.30",
     "gcc-c++",
     "glaze-static",
     "meson",
     "muParser-devel",
-    "pkgconfig(aquamarine)",
+    "pkgconfig(aquamarine) >= 0.9.3",
     "pkgconfig(cairo)",
     "pkgconfig(egl)",
     "pkgconfig(gbm)",
@@ -51,11 +51,11 @@ hyprdeps = {
     "pkgconfig(glesv2)",
     "pkgconfig(glslang)",
     "pkgconfig(hwdata)",
-    "pkgconfig(hyprcursor)",
-    "pkgconfig(hyprgraphics)",
-    "pkgconfig(hyprlang)",
-    "pkgconfig(hyprutils)",
-    "pkgconfig(hyprwayland-scanner)",
+    "pkgconfig(hyprcursor) >= 0.1.7",
+    "pkgconfig(hyprgraphics) >= 0.5.1",
+    "pkgconfig(hyprlang) >= 0.6.7",
+    "pkgconfig(hyprutils) >= 0.11.1",
+    "pkgconfig(hyprwayland-scanner) >= 0.3.10",
     "pkgconfig(hyprwire)",
     "pkgconfig(lcms2)",
     "pkgconfig(libdisplay-info)",
@@ -73,9 +73,9 @@ hyprdeps = {
     "pkgconfig(tomlplusplus)",
     "pkgconfig(uuid)",
     "pkgconfig(wayland-client)",
-    "pkgconfig(wayland-protocols) >= 1.45",
+    "pkgconfig(wayland-protocols) >= 1.47",
     "pkgconfig(wayland-scanner)",
-    "pkgconfig(wayland-server)",
+    "pkgconfig(wayland-server) >= 1.22.91",
     "pkgconfig(xcb-composite)",
     "pkgconfig(xcb-dri3)",
     "pkgconfig(xcb-errors)",
@@ -91,7 +91,7 @@ hyprdeps = {
     "pkgconfig(xcb-xinput)",
     "pkgconfig(xcb)",
     "pkgconfig(xcursor)",
-    "pkgconfig(xkbcommon)",
+    "pkgconfig(xkbcommon) >= 1.11.0",
     "pkgconfig(xwayland)"
     }
 }
@@ -103,6 +103,7 @@ end
 }
 
 %printbdeps
+BuildRequires:  python3
 
 %if 0%{?rhel} == 10
 BuildRequires:  gcc-toolset-15
@@ -116,10 +117,10 @@ Provides:       bundled(udis86) = 1.7.2^1.%{udis86_shortcommit}
 
 Requires:       xorg-x11-server-Xwayland%{?_isa}
 Requires:       aquamarine%{?_isa} >= 0.9.3
-Requires:       hyprcursor%{?_isa} >= 0.1.13
-Requires:       hyprgraphics%{?_isa} >= 0.1.6
+Requires:       hyprcursor%{?_isa} >= 0.1.7
+Requires:       hyprgraphics%{?_isa} >= 0.5.1
 Requires:       hyprlang%{?_isa} >= 0.6.7
-Requires:       hyprutils%{?_isa} >= 0.10.3
+Requires:       hyprutils%{?_isa} >= 0.11.1
 
 %{lua:do
 if string.match(rpm.expand('%{name}'), '%-git$') then
@@ -183,7 +184,7 @@ end
 end}
 %printbdeps -r
 Requires:       git-core
-Requires:       pkgconfig(xkbcommon)
+Requires:       pkgconfig(xkbcommon) >= 1.11.0
 
 %description    devel
 %{summary}.
@@ -227,7 +228,6 @@ source /usr/lib/gcc-toolset/15-env.source
 %cmake \
     -GNinja \
     -DCMAKE_BUILD_TYPE=Release \
-    -DNO_TESTS=TRUE \
     -DBUILD_TESTING=FALSE
 %cmake_build
 
