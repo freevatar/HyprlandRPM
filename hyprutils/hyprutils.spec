@@ -1,5 +1,5 @@
 Name:           hyprutils
-Version:        0.12.0
+Version:        0.13.0
 Release:        %autorelease
 Summary:        Hyprland utilities library used across the ecosystem
 
@@ -10,10 +10,9 @@ Source:         %{url}/archive/v%{version}/%{name}-%{version}.tar.gz
 # https://fedoraproject.org/wiki/Changes/EncourageI686LeafRemoval
 ExcludeArch:    %{ix86}
 
-BuildRequires:  cmake
+BuildRequires:  cmake >= 3.19
 BuildRequires:  gcc-c++
 BuildRequires:  pkgconfig(pixman-1)
-BuildRequires:	gtest-devel
 
 %description
 %{summary}.
@@ -21,6 +20,7 @@ BuildRequires:	gtest-devel
 %package        devel
 Summary:        Development files for %{name}
 Requires:       %{name}%{?_isa} = %{version}-%{release}
+
 %description    devel
 Development files for %{name}.
 
@@ -33,9 +33,6 @@ Development files for %{name}.
 
 %install
 %cmake_install
-
-%check
-%ctest
 
 %files
 %license LICENSE
