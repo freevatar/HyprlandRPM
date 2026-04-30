@@ -2,6 +2,7 @@ Name:           aquamarine
 Version:        0.11.0
 Release:        %autorelease -b2
 Summary:        A very light linux rendering backend library
+
 License:        BSD-3-Clause
 URL:            https://github.com/hyprwm/aquamarine
 Source:         %{url}/archive/v%{version}/%{name}-%{version}.tar.gz
@@ -9,18 +10,18 @@ Source:         %{url}/archive/v%{version}/%{name}-%{version}.tar.gz
 # https://fedoraproject.org/wiki/Changes/EncourageI686LeafRemoval
 ExcludeArch:    %{ix86}
 
-BuildRequires:  cmake
+BuildRequires:  cmake >= 3.19
 BuildRequires:  gcc-c++
 BuildRequires:  mesa-libEGL-devel
 
 BuildRequires:  pkgconfig(gbm)
 BuildRequires:  pkgconfig(hwdata)
-BuildRequires:  pkgconfig(hyprutils)
-BuildRequires:  pkgconfig(hyprwayland-scanner)
+BuildRequires:  pkgconfig(hyprutils) >= 0.8.0
+BuildRequires:  pkgconfig(hyprwayland-scanner) >= 0.4.0
 BuildRequires:  pkgconfig(libdisplay-info)
 BuildRequires:  pkgconfig(libdrm)
-BuildRequires:  pkgconfig(libinput)
-BuildRequires:  pkgconfig(libseat)
+BuildRequires:  pkgconfig(libinput) >= 1.26.0
+BuildRequires:  pkgconfig(libseat) >= 0.8.0
 BuildRequires:  pkgconfig(libudev)
 BuildRequires:  pkgconfig(pixman-1)
 BuildRequires:  pkgconfig(wayland-client)
@@ -32,6 +33,7 @@ BuildRequires:  pkgconfig(wayland-protocols)
 %package        devel
 Summary:        Development files for %{name}
 Requires:       %{name}%{?_isa} = %{version}-%{release}
+
 %description    devel
 Development files for %{name}.
 
