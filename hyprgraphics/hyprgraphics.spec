@@ -14,23 +14,27 @@ BuildRequires:  cmake
 BuildRequires:  gcc-c++
 
 BuildRequires:  pkgconfig(cairo)
-BuildRequires:  pkgconfig(libdrm)
 BuildRequires:  pkgconfig(egl)
 BuildRequires:  pkgconfig(glesv2)
 BuildRequires:  pkgconfig(hyprutils)
+BuildRequires:  pkgconfig(libdrm)
 BuildRequires:  pkgconfig(libjpeg)
+BuildRequires:  pkgconfig(libmagic)
+BuildRequires:  pkgconfig(libpng)
+BuildRequires:  pkgconfig(libwebp)
+BuildRequires:  pkgconfig(librsvg-2.0)
+BuildRequires:  pkgconfig(pangocairo)
+BuildRequires:  pkgconfig(pixman-1)
+
+# Optional AVIF/HEIF support
+BuildRequires:  pkgconfig(libheif)
+
+# Optional JPEG XL support
 %if 0%{?fedora} >= 43
+BuildRequires:  pkgconfig(libjxl)
 BuildRequires:  pkgconfig(libjxl_cms)
 BuildRequires:  pkgconfig(libjxl_threads)
-BuildRequires:  pkgconfig(libjxl)
 %endif
-BuildRequires:  pkgconfig(libmagic)
-BuildRequires:  pkgconfig(libwebp)
-BuildRequires:  pkgconfig(pixman-1)
-BuildRequires:  pkgconfig(libpng)
-BuildRequires:  pkgconfig(pangocairo)
-BuildRequires:  pkgconfig(libheif)
-BuildRequires:  pkgconfig(librsvg-2.0)
 
 %description
 %{summary}.
@@ -38,6 +42,7 @@ BuildRequires:  pkgconfig(librsvg-2.0)
 %package        devel
 Summary:        Development files for %{name}
 Requires:       %{name}%{?_isa} = %{version}-%{release}
+
 %description    devel
 Development files for %{name}.
 
