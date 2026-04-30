@@ -1,6 +1,6 @@
 Name:           hyprwayland-scanner
 Version:        0.4.6
-Release:        %autorelease
+Release:        %autorelease -b2
 Summary:        A Hyprland implementation of wayland-scanner, in and for C++
 
 License:        BSD-3-Clause
@@ -11,14 +11,14 @@ Source:         %{url}/archive/v%{version}/%{name}-%{version}.tar.gz
 ExcludeArch:    %{ix86}
 
 BuildRequires:  cmake
-BuildRequires:  cmake(pugixml)
 BuildRequires:  gcc-c++
+BuildRequires:  pkgconfig(pugixml)
 
 %description
 %{summary}.
 
 %package        devel
-Summary:        A Hyprland implementation of wayland-scanner, in and for C++
+Summary:        Development files and scanner tool for %{name}
 
 %description    devel
 %{summary}.
