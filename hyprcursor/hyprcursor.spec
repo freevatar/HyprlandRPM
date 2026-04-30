@@ -46,6 +46,7 @@ Development files for %{name}.
 %{_libdir}/lib%{name}.so.0
 
 %files devel
+%{_includedir}/%{name}.hpp
 %{_includedir}/%{name}/
 %{_libdir}/lib%{name}.so
 %{_libdir}/pkgconfig/%{name}.pc
