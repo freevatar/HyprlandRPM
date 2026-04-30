@@ -2,6 +2,7 @@ Name:           hyprsunset
 Version:        0.3.3
 Release:        %autorelease -b8
 Summary:        An application to enable a blue-light filter on Hyprland
+
 License:        BSD-3-Clause
 URL:            https://github.com/hyprwm/hyprsunset
 Source:         %{url}/archive/v%{version}/%{name}-%{version}.tar.gz
@@ -9,15 +10,15 @@ Source:         %{url}/archive/v%{version}/%{name}-%{version}.tar.gz
 # https://fedoraproject.org/wiki/Changes/EncourageI686LeafRemoval
 ExcludeArch:    %{ix86}
 
-BuildRequires:  cmake
+BuildRequires:  cmake >= 3.25
 BuildRequires:  gcc-c++
 BuildRequires:  systemd-rpm-macros
-
-BuildRequires:  pkgconfig(hyprland-protocols)
+BuildRequires:  pkgconfig(hyprland-protocols) >= 0.4.0
 BuildRequires:  pkgconfig(hyprlang)
-BuildRequires:  pkgconfig(hyprutils)
-BuildRequires:  pkgconfig(hyprwayland-scanner)
+BuildRequires:  pkgconfig(hyprutils) >= 0.2.3
+BuildRequires:  pkgconfig(hyprwayland-scanner) >= 0.4.0
 BuildRequires:  pkgconfig(wayland-client)
+BuildRequires:  pkgconfig(wayland-cursor)
 BuildRequires:  pkgconfig(wayland-protocols)
 
 %description
