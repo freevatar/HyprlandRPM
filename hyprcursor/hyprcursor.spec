@@ -12,9 +12,8 @@ ExcludeArch:    %{ix86}
 
 BuildRequires:  cmake
 BuildRequires:  gcc-c++
-
 BuildRequires:  pkgconfig(cairo)
-BuildRequires:  pkgconfig(hyprlang)
+BuildRequires:  pkgconfig(hyprlang) >= 0.4.2
 BuildRequires:  pkgconfig(librsvg-2.0)
 BuildRequires:  pkgconfig(libzip)
 BuildRequires:  pkgconfig(tomlplusplus)
@@ -25,6 +24,7 @@ BuildRequires:  pkgconfig(tomlplusplus)
 %package        devel
 Summary:        Development files for %{name}
 Requires:       %{name}%{?_isa} = %{version}-%{release}
+
 %description    devel
 Development files for %{name}.
 
@@ -46,7 +46,6 @@ Development files for %{name}.
 %{_libdir}/lib%{name}.so.0
 
 %files devel
-%{_includedir}/%{name}.hpp
 %{_includedir}/%{name}/
 %{_libdir}/lib%{name}.so
 %{_libdir}/pkgconfig/%{name}.pc
