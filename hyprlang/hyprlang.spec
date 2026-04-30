@@ -12,7 +12,7 @@ ExcludeArch:    %{ix86}
 
 BuildRequires:  cmake
 BuildRequires:  gcc-c++
-BuildRequires:  pkgconfig(hyprutils)
+BuildRequires:  pkgconfig(hyprutils) >= 0.7.1
 
 %description
 %{summary}.
@@ -20,6 +20,7 @@ BuildRequires:  pkgconfig(hyprutils)
 %package        devel
 Summary:        Development files for %{name}
 Requires:       %{name}%{?_isa} = %{version}-%{release}
+
 %description    devel
 Development files for %{name}.
 
