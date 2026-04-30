@@ -1,10 +1,12 @@
 Name:           hyprpicker
 Version:        0.4.6
 Release:        %autorelease -b3
+
 Summary:        A wlroots-compatible Wayland color picker
 # LICENSE: BSD-3-Clause
 # protocols/wlr-layer-shell-unstable-v1.xml: HPND-sell-variant
 License:        BSD-3-Clause AND HPND-sell-variant
+
 URL:            https://github.com/hyprwm/hyprpicker
 Source0:        %{url}/archive/v%{version}/%{name}-%{version}.tar.gz
 
@@ -13,7 +15,6 @@ Patch0:         https://github.com/hyprwm/hyprpicker/commit/089dd8a448c12e106648
 
 BuildRequires:  cmake
 BuildRequires:  gcc-c++
-
 BuildRequires:  pkgconfig(cairo)
 BuildRequires:  pkgconfig(hyprutils) >= 0.2.0
 BuildRequires:  pkgconfig(hyprwayland-scanner) >= 0.4.0
@@ -31,7 +32,6 @@ Recommends:     wl-clipboard
 %description
 %{summary}.
 
-
 %prep
 %autosetup -p1 -N
 
@@ -46,17 +46,14 @@ Recommends:     wl-clipboard
     -DCMAKE_INSTALL_MANDIR=%{_mandir}
 %cmake_build
 
-
 %install
 %cmake_install
-
 
 %files
 %license LICENSE
 %doc README.md
 %{_bindir}/%{name}
 %{_mandir}/man1/%{name}.1.*
-
 
 %changelog
 %autochangelog
