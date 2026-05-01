@@ -1,17 +1,21 @@
 Name:           hyprqt6engine
 Version:        0.1.0
-Release:        %autorelease -b12
-Summary:        Qt6 Theme Provider for Hyprland
+Release:        %autorelease -b13
+Summary:        Qt6 theme provider for Hyprland
+
 License:        BSD-3-Clause
 URL:            https://github.com/hyprwm/hyprqt6engine
-Source:         %{url}/archive/v%{version}/%{name}-%{version}.tar.gz
-Patch:          fix-build.diff
+Source0:        %{url}/archive/refs/tags/v%{version}/%{name}-%{version}.tar.gz
+
+# Needed for the v0.1.0 tag when building with Qt 6.9 private Gui targets.
+Patch0:         fix-build.diff
 
 # https://fedoraproject.org/wiki/Changes/EncourageI686LeafRemoval
 ExcludeArch:    %{ix86}
 
 BuildRequires:  cmake
 BuildRequires:  gcc-c++
+BuildRequires:  pkgconf-pkg-config
 BuildRequires:  qt6-rpm-macros
 
 BuildRequires:  pkgconfig(hyprlang)
@@ -20,9 +24,12 @@ BuildRequires:  pkgconfig(hyprutils)
 BuildRequires:  cmake(KF6ColorScheme)
 BuildRequires:  cmake(KF6Config)
 BuildRequires:  cmake(KF6IconThemes)
-BuildRequires:  cmake(Qt6BuildInternals)
-BuildRequires:  cmake(Qt6Core)
-BuildRequires:  cmake(Qt6Widgets)
+
+BuildRequires:  cmake(Qt6BuildInternals) >= 6.9
+BuildRequires:  cmake(Qt6Core) >= 6.9
+BuildRequires:  cmake(Qt6Gui) >= 6.9
+BuildRequires:  cmake(Qt6GuiPrivate) >= 6.9
+BuildRequires:  cmake(Qt6Widgets) >= 6.9
 BuildRequires:  qt6-qtbase-private-devel
 
 %description
@@ -32,7 +39,9 @@ BuildRequires:  qt6-qtbase-private-devel
 %autosetup -p1
 
 %build
-%cmake -DCMAKE_BUILD_TYPE=Release
+%cmake \
+    -DCMAKE_BUILD_TYPE=Release \
+    -DPLUGINDIR=%{_qt6_plugindir}
 %cmake_build
 
 %install
