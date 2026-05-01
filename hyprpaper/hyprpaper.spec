@@ -1,6 +1,6 @@
 Name:           hyprpaper
 Version:        0.8.4
-Release:        %autorelease -b2
+Release:        %autorelease -b3
 Summary:        Blazing fast wayland wallpaper utility with IPC controls
 
 # LICENSE: BSD-3-Clause
@@ -15,21 +15,21 @@ ExcludeArch:    %{ix86}
 BuildRequires:  cmake
 BuildRequires:  gcc-c++
 BuildRequires:  systemd-rpm-macros
-BuildRequires:  pkgconfig(cairo)
+
+BuildRequires:  cmake(hyprwayland-scanner) >= 0.4.0
 BuildRequires:  pkgconfig(glesv2)
-BuildRequires:  pkgconfig(hyprgraphics)
-BuildRequires:  pkgconfig(hyprlang)
-BuildRequires:  pkgconfig(hyprtoolkit)
-BuildRequires:  pkgconfig(hyprutils)
-BuildRequires:  pkgconfig(hyprwayland-scanner)
+BuildRequires:  pkgconfig(hyprlang) >= 0.6.0
+BuildRequires:  pkgconfig(hyprtoolkit) >= 0.4.1
+BuildRequires:  pkgconfig(hyprutils) >= 0.2.4
 BuildRequires:  pkgconfig(hyprwire)
 BuildRequires:  pkgconfig(libdrm)
 BuildRequires:  pkgconfig(libmagic)
-BuildRequires:  pkgconfig(pango)
-BuildRequires:  pkgconfig(pangocairo)
+BuildRequires:  pkgconfig(opengl)
 BuildRequires:  pkgconfig(pixman-1)
 BuildRequires:  pkgconfig(wayland-client)
+BuildRequires:  pkgconfig(wayland-cursor)
 BuildRequires:  pkgconfig(wayland-protocols)
+BuildRequires:  pkgconfig(wayland-scanner)
 
 %description
 A blazing fast wayland wallpaper utility.
