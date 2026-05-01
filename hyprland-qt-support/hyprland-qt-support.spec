@@ -1,7 +1,8 @@
 Name:           hyprland-qt-support
 Version:        0.1.0
-Release:        %autorelease -b11
+Release:        %autorelease -b12
 Summary:        A Qt6 Qml style provider for hypr* apps
+
 License:        BSD-3-Clause
 URL:            https://github.com/hyprwm/hyprland-qt-support
 Source:         %{url}/archive/v%{version}/%{name}-%{version}.tar.gz
@@ -13,12 +14,10 @@ ExcludeArch:    %{ix86}
 BuildRequires:  cmake
 BuildRequires:  gcc-c++
 BuildRequires:  qt6-rpm-macros
-
 BuildRequires:  cmake(Qt6Quick)
 BuildRequires:  cmake(Qt6QuickControls2)
 BuildRequires:  cmake(Qt6Qml)
-
-BuildRequires:  pkgconfig(hyprlang)
+BuildRequires:  pkgconfig(hyprlang) >= 0.6.0
 
 %description
 %{summary}.
