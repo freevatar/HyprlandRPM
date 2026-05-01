@@ -1,6 +1,6 @@
 Name:           hyprtoolkit
 Version:        0.5.3
-Release:        %autorelease -b4
+Release:        %autorelease -b5
 Summary:        A modern C++ Wayland-native GUI toolkit
 
 License:        BSD-3-Clause
@@ -10,21 +10,22 @@ Source:         %{url}/archive/v%{version}/%{name}-%{version}.tar.gz
 # ToDo: Remove after next upstream release
 Patch0:         https://github.com/hyprwm/hyprtoolkit/commit/7c41a2729335e146cea4bdd8843aea0e5c146aba.patch
 
-
 # https://fedoraproject.org/wiki/Changes/EncourageI686LeafRemoval
 ExcludeArch:    %{ix86}
 
-BuildRequires:  cmake
-BuildRequires:  cmake(hyprwayland-scanner)
+BuildRequires:  cmake >= 3.27
+BuildRequires:  cmake(hyprwayland-scanner) >= 0.4.0
 BuildRequires:  gcc-c++
 BuildRequires:  ninja-build
-BuildRequires:  pkgconfig(aquamarine)
+
+BuildRequires:  pkgconfig(aquamarine) >= 0.10.0
 BuildRequires:  pkgconfig(cairo)
 BuildRequires:  pkgconfig(egl)
 BuildRequires:  pkgconfig(gbm)
-BuildRequires:  pkgconfig(hyprgraphics)
-BuildRequires:  pkgconfig(hyprlang)
-BuildRequires:  pkgconfig(hyprutils)
+BuildRequires:  pkgconfig(glesv2)
+BuildRequires:  pkgconfig(hyprgraphics) >= 0.3.0
+BuildRequires:  pkgconfig(hyprlang) >= 0.6.0
+BuildRequires:  pkgconfig(hyprutils) >= 0.11.0
 BuildRequires:  pkgconfig(iniparser)
 BuildRequires:  pkgconfig(libdrm)
 BuildRequires:  pkgconfig(pango)
@@ -41,11 +42,11 @@ BuildRequires:  pkgconfig(xkbcommon)
 %package        devel
 Summary:        Development files for %{name}
 Requires:       %{name}%{?_isa} = %{version}-%{release}
-Requires:       pkgconfig(aquamarine)
+Requires:       pkgconfig(aquamarine) >= 0.10.0
 Requires:       pkgconfig(cairo)
-Requires:       pkgconfig(hyprgraphics)
-Requires:       pkgconfig(hyprlang)
-Requires:       pkgconfig(hyprutils)
+Requires:       pkgconfig(hyprgraphics) >= 0.3.0
+Requires:       pkgconfig(hyprlang) >= 0.6.0
+Requires:       pkgconfig(hyprutils) >= 0.11.0
 Requires:       pkgconfig(pango)
 Requires:       pkgconfig(pangocairo)
 
