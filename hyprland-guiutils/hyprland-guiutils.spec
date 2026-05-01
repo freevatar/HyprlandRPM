@@ -1,7 +1,8 @@
 Name:           hyprland-guiutils
 Version:        0.2.1
-Release:        %autorelease -b5
+Release:        %autorelease -b6
 Summary:        Hyprland Qt/qml utility apps
+
 License:        BSD-3-Clause
 URL:            https://github.com/hyprwm/hyprland-guiutils
 Source:         %{url}/archive/v%{version}/%{name}-%{version}.tar.gz
@@ -11,17 +12,17 @@ ExcludeArch:    %{ix86}
 
 BuildRequires:  cmake
 BuildRequires:  gcc-c++
-
 BuildRequires:  cmake(Qt6Quick)
 BuildRequires:  cmake(Qt6QuickControls2)
 BuildRequires:  cmake(Qt6WaylandClient)
 BuildRequires:  cmake(Qt6Widgets)
 BuildRequires:  qt6-qtbase-private-devel
-BuildRequires:  pkgconfig(hyprlang)
-BuildRequires:  pkgconfig(hyprtoolkit)
+BuildRequires:  pkgconfig(hyprlang) >= 0.6.0
+BuildRequires:  pkgconfig(hyprtoolkit) >= 0.4.0
+BuildRequires:  pkgconfig(hyprutils) >= 0.10.2
 BuildRequires:  pkgconfig(pixman-1)
 BuildRequires:  pkgconfig(libdrm)
-BuildRequires:  pkgconfig(hyprutils)
+BuildRequires:  pkgconfig(xkbcommon)
 BuildRequires:  wayland-devel
 
 Requires:       hyprland-qt-support%{?_isa}
