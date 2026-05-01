@@ -1,7 +1,8 @@
 Name:           hyprsysteminfo
 Version:        0.2.0
-Release:        %autorelease -b2
-Summary:        An application to display information about the running system
+Release:        %autorelease -b3
+Summary:        System information utility for Hyprland
+
 License:        BSD-3-Clause
 URL:            https://github.com/hyprwm/hyprsysteminfo
 Source:         %{url}/archive/v%{version}/%{name}-%{version}.tar.gz
@@ -23,14 +24,14 @@ BuildRequires:  pkgconfig(pixman-1)
 Requires:       /usr/bin/wl-copy
 
 %description
-A tiny qt6/qml application to display information about the running system,
-or copy diagnostics data, without the terminal.
+A tiny hyprtoolkit application to display information about the running
+system, or copy diagnostics data, without the terminal.
 
 %prep
 %autosetup -p1
 
 %build
-%cmake
+%cmake -DFETCHCONTENT_FULLY_DISCONNECTED=ON
 %cmake_build
 
 %install
