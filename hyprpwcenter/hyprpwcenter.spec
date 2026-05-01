@@ -1,6 +1,6 @@
 Name:           hyprpwcenter
 Version:        0.1.2
-Release:        %autorelease -b3
+Release:        %autorelease -b4
 Summary:        A GUI Pipewire control center
 
 License:        BSD-3-Clause
@@ -10,12 +10,12 @@ Source:         %{url}/archive/v%{version}/%{name}-%{version}.tar.gz
 # https://fedoraproject.org/wiki/Changes/EncourageI686LeafRemoval
 ExcludeArch:    %{ix86}
 
-BuildRequires:  cmake
+BuildRequires:  cmake >= 3.19
 BuildRequires:  desktop-file-utils
 BuildRequires:  gcc-c++
 BuildRequires:  ninja-build
 BuildRequires:  pkgconfig(hyprtoolkit)
-BuildRequires:  pkgconfig(hyprutils)
+BuildRequires:  pkgconfig(hyprutils) >= 0.10.2
 BuildRequires:  pkgconfig(libdrm)
 BuildRequires:  pkgconfig(libpipewire-0.3)
 BuildRequires:  pkgconfig(pixman-1)
@@ -30,13 +30,14 @@ BuildRequires:  pkgconfig(pixman-1)
 %cmake \
     -GNinja \
     -DCMAKE_BUILD_TYPE=Release
+
 %cmake_build
 
 %install
 %cmake_install
 
 %check
-desktop-file-validate %{buildroot}%{_datadir}/applications/*.desktop
+desktop-file-validate %{buildroot}%{_datadir}/applications/hyprpwcenter.desktop
 
 %files
 %license LICENSE
