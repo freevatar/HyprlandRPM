@@ -1,6 +1,6 @@
 Name:           hyprpicker
 Version:        0.4.7
-Release:        %autorelease
+Release:        %autorelease -b2
 
 Summary:        A wlroots-compatible Wayland color picker
 # LICENSE: BSD-3-Clause
@@ -9,9 +9,6 @@ License:        BSD-3-Clause AND HPND-sell-variant
 
 URL:            https://github.com/hyprwm/hyprpicker
 Source0:        %{url}/archive/v%{version}/%{name}-%{version}.tar.gz
-
-# ToDo: Remove after next upstream release
-Patch0:         https://github.com/hyprwm/hyprpicker/commit/089dd8a448c12e1066486892de096590cddb4195.patch
 
 BuildRequires:  cmake
 BuildRequires:  gcc-c++
@@ -34,11 +31,6 @@ Recommends:     wl-clipboard
 
 %prep
 %autosetup -p1 -N
-
-# ToDo: Remove after next upstream release
-%if 0%{?fedora} >= 44
-%autopatch -p1
-%endif
 
 %build
 %cmake \
