@@ -1,8 +1,10 @@
+%global upstream_version 0.55.0
+%global snapshot 1
+
 %global hyprland_commit af923e30d1d24f1f4a4f5cb8308065173c1d9539
 %global hyprland_shortcommit %(c=%{hyprland_commit}; echo ${c:0:7})
-%global bumpver 1
-%global commits_count 7290
-%global commit_date Sat May 09 09:35:27 2026
+%global hyprland_commits 7290
+%global hyprland_commit_date Sat May 09 09:35:27 2026
 
 %global protocols_commit 3a5c2bda1c1a4e55cc1330c782547695a93f05b2
 %global protocols_shortcommit %(c=%{protocols_commit}; echo ${c:0:7})
@@ -10,31 +12,24 @@
 %global udis86_commit 5336633af70f3917760a6d441ff02d93477b0c86
 %global udis86_shortcommit %(c=%{udis86_commit}; echo ${c:0:7})
 
-%global libxkbcommon_version 1.11.0
-
 Name:           hyprland-git
-Version:        0.55.0%{?bumpver:^%{bumpver}.git%{hyprland_shortcommit}}
-Release:        %autorelease -b2
+Version:        %{upstream_version}^%{snapshot}.git%{hyprland_shortcommit}
+Release:        %autorelease
 Summary:        Dynamic tiling Wayland compositor that doesn't sacrifice on its looks
 
 # hyprland: BSD-3-Clause
 # subprojects/hyprland-protocols: BSD-3-Clause
-# subproject/udis86: BSD-2-Clause
+# subprojects/udis86: BSD-2-Clause
 # protocols/ext-workspace-unstable-v1.xml: HPND-sell-variant
 # protocols/wlr-foreign-toplevel-management-unstable-v1.xml: HPND-sell-variant
 # protocols/wlr-layer-shell-unstable-v1.xml: HPND-sell-variant
 # protocols/idle.xml: LGPL-2.1-or-later
 License:        BSD-3-Clause AND BSD-2-Clause AND HPND-sell-variant AND LGPL-2.1-or-later
 URL:            https://github.com/hyprwm/Hyprland
-%if 0%{?bumpver}
 Source0:        %{url}/archive/%{hyprland_commit}/%{name}-%{hyprland_shortcommit}.tar.gz
 Source2:        https://github.com/hyprwm/hyprland-protocols/archive/%{protocols_commit}/protocols-%{protocols_shortcommit}.tar.gz
 Source3:        https://github.com/canihavesomecoffee/udis86/archive/%{udis86_commit}/udis86-%{udis86_shortcommit}.tar.gz
-%else
-Source0:        %{url}/releases/download/v%{version}/source-v%{version}.tar.gz
-%endif
 Source4:        macros.hyprland
-Source5:        https://github.com/xkbcommon/libxkbcommon/archive/xkbcommon-%{libxkbcommon_version}/libxkbcommon-%{libxkbcommon_version}.tar.gz
 
 %{lua:
 hyprdeps = {
@@ -105,12 +100,6 @@ end
 %printbdeps
 BuildRequires:  python3
 
-%if 0%{?rhel} == 10
-BuildRequires:  gcc-toolset-15
-BuildRequires:  gcc-toolset-15-gcc-c++
-BuildRequires:  gcc-toolset-15-annobin-plugin-gcc
-%endif
-
 # udis86 is packaged in Fedora, but the copy bundled here is actually a
 # modified fork.
 Provides:       bundled(udis86) = 1.7.2^1.%{udis86_shortcommit}
@@ -120,37 +109,15 @@ Requires:       aquamarine%{?_isa} >= 0.9.3
 Requires:       hyprcursor%{?_isa} >= 0.1.7
 Requires:       hyprgraphics%{?_isa} >= 0.5.1
 Requires:       hyprlang%{?_isa} >= 0.6.7
-Requires:       hyprutils%{?_isa} >= 0.11.1
-
-%{lua:do
-if string.match(rpm.expand('%{name}'), '%-git$') then
-    print('Conflicts: hyprland'..'\n')
-    print('Obsoletes: hyprland-nvidia-git < 0.32.3^30.gitad3f688-2'..'\n')
-    print(rpm.expand('Provides: hyprland-nvidia-git = %{version}-%{release}')..'\n')
-    print('Obsoletes: hyprland-aquamarine-git < 0.41.2^20.git4b84029-2'..'\n')
-elseif not string.match(rpm.expand('%{name}'), 'hyprland$') then
-    print(rpm.expand('Provides: hyprland = %{version}-%{release}')..'\n')
-    print('Conflicts: hyprland'..'\n')
-else
-    print('Obsoletes: hyprland-nvidia < 1:0.32.3-2'..'\n')
-    print(rpm.expand('Provides: hyprland-nvidia = %{version}-%{release}')..'\n')
-    print('Obsoletes: hyprland-legacyrenderer < 0.49.0'..'\n')
-end
-end}
+Requires:       hyprutils%{?_isa} >= 0.13.1
 
 # Used in the default configuration
 Recommends:     kitty
-Recommends:     wofi
-Recommends:     playerctl
-Recommends:     brightnessctl
 Recommends:     hyprland-qtutils
-# Lack of graphical drivers may hurt the common use case
-Recommends:     mesa-dri-drivers
 # Logind needs polkit to create a graphical session
 Recommends:     polkit
 # https://wiki.hyprland.org/Useful-Utilities/Systemd-start
 Recommends:     %{name}-uwsm
-
 Recommends:     (qt5-qtwayland if qt5-qtbase-gui)
 Recommends:     (qt6-qtwayland if qt6-qtbase-gui)
 
@@ -170,20 +137,6 @@ Files for a uwsm-managed session.
 Summary:        Header and protocol files for %{name}
 License:        BSD-3-Clause
 Requires:       %{name}%{?_isa} = %{version}-%{release}
-Requires:       cpio
-%{lua:do
-if string.match(rpm.expand('%{name}'), 'hyprland%-git$') then
-    print('Obsoletes: hyprland-nvidia-git-devel < 0.32.3^30.gitad3f688-2'..'\n')
-    print(rpm.expand('Provides: hyprland-nvidia-git-devel = %{version}-%{release}')..'\n')
-    print('Obsoletes: hyprland-aquamarine-git-devel < 0.41.2^20.git4b84029-2'..'\n')
-elseif string.match(rpm.expand('%{name}'), 'hyprland$') then
-    print('Obsoletes: hyprland-nvidia-devel < 1:0.32.3-2'..'\n')
-    print(rpm.expand('Provides: hyprland-nvidia-devel = %{version}-%{release}')..'\n')
-    print('Obsoletes: hyprland-legacyrenderer-devel < 0.49.0'..'\n')
-end
-end}
-%printbdeps -r
-Requires:       git-core
 Requires:       pkgconfig(xkbcommon) >= 1.11.0
 
 %description    devel
@@ -191,19 +144,10 @@ Requires:       pkgconfig(xkbcommon) >= 1.11.0
 
 
 %prep
-%autosetup -n %{?bumpver:Hyprland-%{hyprland_commit}} %{!?bumpver:hyprland-source} -N
+%autosetup -n Hyprland-%{hyprland_commit} -N
 
-%if 0%{?bumpver}
 tar -xf %{SOURCE2} -C subprojects/hyprland-protocols --strip=1
 tar -xf %{SOURCE3} -C subprojects/udis86 --strip=1
-sed -e '/GIT_COMMIT_HASH/s/unknown/%{hyprland_commit}/' \
-    -e '/GIT_BRANCH/s/unknown/main/' \
-    -e '/GIT_COMMIT_DATE/s/unknown/%{commit_date}/' \
-    -e '/GIT_TAG/s/unknown/%{lua:print((macros.version:gsub('[%^~].*', '')))}/' \
-    -e '/GIT_DIRTY/s/unknown/clean/' \
-    -e '/GIT_COMMITS/s/0/%{commits_count}/' \
-    -i CMakeLists.txt
-%endif
 
 # Temporary workaround
 # Fedora 43 still ships Lua 5.4
@@ -221,9 +165,12 @@ sed -i \
 
 %build
 
-%if 0%{?rhel} == 10
-source /usr/lib/gcc-toolset/15-env.source
-%endif
+export GIT_COMMIT_HASH=%{hyprland_commit}
+export GIT_BRANCH=main
+export GIT_COMMIT_DATE="%{hyprland_commit_date}"
+export GIT_TAG=%{upstream_version}
+export GIT_DIRTY=clean
+export GIT_COMMITS=%{hyprland_commits}
 
 %cmake \
     -GNinja \
@@ -234,17 +181,14 @@ source /usr/lib/gcc-toolset/15-env.source
 
 %install
 
-%if 0%{?rhel} == 10
-source /usr/lib/gcc-toolset/15-env.source
-%endif
-
 %cmake_install
 install -Dpm644 %{SOURCE4} -t %{buildroot}%{_rpmconfigdir}/macros.d
 
 
 %files
 %license LICENSE LICENSE-udis86 LICENSE-hyprland-protocols
-%{_bindir}/[Hh]yprland
+%{_bindir}/Hyprland
+%{_bindir}/hyprland
 %{_bindir}/hyprctl
 %{_bindir}/hyprpm
 %{_datadir}/hypr/

@@ -1,5 +1,7 @@
+%global upstream_version 0.55.0
+
 Name:           hyprland
-Version:        0.55.0
+Version:        %{upstream_version}
 Release:        %autorelease -b3
 Summary:        Dynamic tiling Wayland compositor that doesn't sacrifice on its looks
 
@@ -12,29 +14,29 @@ Summary:        Dynamic tiling Wayland compositor that doesn't sacrifice on its 
 # protocols/idle.xml: LGPL-2.1-or-later
 License:        BSD-3-Clause AND BSD-2-Clause AND HPND-sell-variant AND LGPL-2.1-or-later
 URL:            https://github.com/hyprwm/Hyprland
-Source0:        %{url}/releases/download/v%{version}/source-v%{version}.tar.gz
+Source0:        %{url}/releases/download/v%{upstream_version}/source-v%{upstream_version}.tar.gz
 Source4:        macros.hyprland
 
 %{lua:
 hyprdeps = {
-    "cmake",
+    "cmake >= 3.30",
     "gcc-c++",
     "glaze-static",
     "meson",
     "muParser-devel",
-    "pkgconfig(aquamarine)",
+    "pkgconfig(aquamarine) >= 0.9.3",
     "pkgconfig(cairo)",
     "pkgconfig(egl)",
     "pkgconfig(gbm)",
     "pkgconfig(gio-2.0)",
-    "pkgconfig(glslang)",
     "pkgconfig(glesv2)",
+    "pkgconfig(glslang)",
     "pkgconfig(hwdata)",
-    "pkgconfig(hyprcursor)",
-    "pkgconfig(hyprgraphics)",
-    "pkgconfig(hyprlang)",
-    "pkgconfig(hyprutils)",
-    "pkgconfig(hyprwayland-scanner)",
+    "pkgconfig(hyprcursor) >= 0.1.7",
+    "pkgconfig(hyprgraphics) >= 0.5.1",
+    "pkgconfig(hyprlang) >= 0.6.7",
+    "pkgconfig(hyprutils) >= 0.13.1",
+    "pkgconfig(hyprwayland-scanner) >= 0.3.10",
     "pkgconfig(hyprwire)",
     "pkgconfig(lcms2)",
     "pkgconfig(libdisplay-info)",
@@ -43,6 +45,7 @@ hyprdeps = {
     "pkgconfig(libliftoff)",
     "pkgconfig(libseat)",
     "pkgconfig(libudev)",
+    "pkgconfig(lua)",
     "pkgconfig(pango)",
     "pkgconfig(pangocairo)",
     "pkgconfig(pixman-1)",
@@ -51,9 +54,9 @@ hyprdeps = {
     "pkgconfig(tomlplusplus)",
     "pkgconfig(uuid)",
     "pkgconfig(wayland-client)",
-    "pkgconfig(wayland-protocols) >= 1.45",
+    "pkgconfig(wayland-protocols) >= 1.47",
     "pkgconfig(wayland-scanner)",
-    "pkgconfig(wayland-server)",
+    "pkgconfig(wayland-server) >= 1.22.91",
     "pkgconfig(xcb-composite)",
     "pkgconfig(xcb-dri3)",
     "pkgconfig(xcb-errors)",
@@ -69,11 +72,10 @@ hyprdeps = {
     "pkgconfig(xcb-xinput)",
     "pkgconfig(xcb)",
     "pkgconfig(xcursor)",
-    "pkgconfig(xwayland)",
+    "pkgconfig(xkbcommon) >= 1.11.0",
+    "pkgconfig(xwayland)"
     }
 }
-
-BuildRequires:  pkgconfig(xkbcommon)
 
 %define printbdeps(r) %{lua:
 for _, dep in ipairs(hyprdeps) do
@@ -82,43 +84,26 @@ end
 }
 
 %printbdeps
+BuildRequires:  python3
 
 # udis86 is packaged in Fedora, but the copy bundled here is actually a
 # modified fork.
-Provides:       bundled(udis86) = 1.7.2^1.%{udis86_shortcommit}
+Provides:       bundled(udis86) = 1.7.2
 
 Requires:       xorg-x11-server-Xwayland%{?_isa}
-Requires:       aquamarine%{?_isa} >= 0.9.2
-Requires:       hyprcursor%{?_isa} >= 0.1.13
-Requires:       hyprgraphics%{?_isa} >= 0.1.6
-Requires:       hyprlang%{?_isa} >= 0.6.3
-Requires:       hyprutils%{?_isa} >= 0.8.4
-
-%{lua:do
-if string.match(rpm.expand('%{name}'), '%-git$') then
-    print('Conflicts: hyprland'..'\n')
-    print('Obsoletes: hyprland-nvidia-git < 0.32.3^30.gitad3f688-2'..'\n')
-    print(rpm.expand('Provides: hyprland-nvidia-git = %{version}-%{release}')..'\n')
-    print('Obsoletes: hyprland-aquamarine-git < 0.41.2^20.git4b84029-2'..'\n')
-elseif not string.match(rpm.expand('%{name}'), 'hyprland$') then
-    print(rpm.expand('Provides: hyprland = %{version}-%{release}')..'\n')
-    print('Conflicts: hyprland'..'\n')
-else
-    print('Obsoletes: hyprland-nvidia < 1:0.32.3-2'..'\n')
-    print(rpm.expand('Provides: hyprland-nvidia = %{version}-%{release}')..'\n')
-    print('Obsoletes: hyprland-legacyrenderer < 0.49.0'..'\n')
-end
-end}
+Requires:       aquamarine%{?_isa} >= 0.9.3
+Requires:       hyprcursor%{?_isa} >= 0.1.7
+Requires:       hyprgraphics%{?_isa} >= 0.5.1
+Requires:       hyprlang%{?_isa} >= 0.6.7
+Requires:       hyprutils%{?_isa} >= 0.13.1
 
 # Used in the default configuration
+Recommends:     kitty
 Recommends:     hyprland-qtutils
-# Lack of graphical drivers may hurt the common use case
-Recommends:     mesa-dri-drivers
 # Logind needs polkit to create a graphical session
 Recommends:     polkit
 # https://wiki.hyprland.org/Useful-Utilities/Systemd-start
 Recommends:     %{name}-uwsm
-
 Recommends:     (qt5-qtwayland if qt5-qtbase-gui)
 Recommends:     (qt6-qtwayland if qt6-qtbase-gui)
 
@@ -138,28 +123,20 @@ Files for a uwsm-managed session.
 Summary:        Header and protocol files for %{name}
 License:        BSD-3-Clause
 Requires:       %{name}%{?_isa} = %{version}-%{release}
-Requires:       cpio
-%{lua:do
-if string.match(rpm.expand('%{name}'), 'hyprland%-git$') then
-    print('Obsoletes: hyprland-nvidia-git-devel < 0.32.3^30.gitad3f688-2'..'\n')
-    print(rpm.expand('Provides: hyprland-nvidia-git-devel = %{version}-%{release}')..'\n')
-    print('Obsoletes: hyprland-aquamarine-git-devel < 0.41.2^20.git4b84029-2'..'\n')
-elseif string.match(rpm.expand('%{name}'), 'hyprland$') then
-    print('Obsoletes: hyprland-nvidia-devel < 1:0.32.3-2'..'\n')
-    print(rpm.expand('Provides: hyprland-nvidia-devel = %{version}-%{release}')..'\n')
-    print('Obsoletes: hyprland-legacyrenderer-devel < 0.49.0'..'\n')
-end
-end}
-%printbdeps -r
-Requires:       git-core
-Requires:       pkgconfig(xkbcommon)
+Requires:       pkgconfig(xkbcommon) >= 1.11.0
 
 %description    devel
 %{summary}.
 
 
 %prep
-%autosetup -n %{?bumpver:Hyprland-%{hyprland_commit}} %{!?bumpver:hyprland-source} -N
+%autosetup -n hyprland-source -N
+
+# Temporary workaround
+# Fedora 43 still ships Lua 5.4
+# Upstream Hyprland requests Lua 5.5
+# Drop this once building against Lua 5.5 is available
+sed -i -e '/pkg_check_modules(/,/)/s|\<lua55\>|lua|g' CMakeLists.txt
 
 cp -p subprojects/hyprland-protocols/LICENSE LICENSE-hyprland-protocols
 cp -p subprojects/udis86/LICENSE LICENSE-udis86
@@ -170,10 +147,12 @@ sed -i \
 
 
 %build
+export GIT_TAG=%{upstream_version}
+export GIT_DIRTY=clean
+
 %cmake \
     -GNinja \
     -DCMAKE_BUILD_TYPE=Release \
-    -DNO_TESTS=TRUE \
     -DBUILD_TESTING=FALSE
 %cmake_build
 
@@ -185,7 +164,8 @@ install -Dpm644 %{SOURCE4} -t %{buildroot}%{_rpmconfigdir}/macros.d
 
 %files
 %license LICENSE LICENSE-udis86 LICENSE-hyprland-protocols
-%{_bindir}/[Hh]yprland
+%{_bindir}/Hyprland
+%{_bindir}/hyprland
 %{_bindir}/hyprctl
 %{_bindir}/hyprpm
 %{_bindir}/start-hyprland
