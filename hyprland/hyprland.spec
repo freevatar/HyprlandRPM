@@ -1,8 +1,8 @@
-%global upstream_version 0.55.0
+%global upstream_version 0.54.3
 
 Name:           hyprland
 Version:        %{upstream_version}
-Release:        %autorelease -b3
+Release:        %autorelease -b4
 Summary:        Dynamic tiling Wayland compositor that doesn't sacrifice on its looks
 
 # hyprland: BSD-3-Clause
