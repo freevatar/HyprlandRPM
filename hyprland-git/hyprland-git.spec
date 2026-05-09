@@ -54,7 +54,7 @@ hyprdeps = {
     "pkgconfig(hyprcursor) >= 0.1.7",
     "pkgconfig(hyprgraphics) >= 0.5.1",
     "pkgconfig(hyprlang) >= 0.6.7",
-    "pkgconfig(hyprutils) >= 0.11.1",
+    "pkgconfig(hyprutils) >= 0.13.1",
     "pkgconfig(hyprwayland-scanner) >= 0.3.10",
     "pkgconfig(hyprwire)",
     "pkgconfig(lcms2)",
