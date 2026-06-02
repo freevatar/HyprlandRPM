@@ -137,7 +137,14 @@ def main():
     else:
         root_dir = Path(".").resolve()
 
-    spec_files = sorted(root_dir.rglob("*.spec"))
+    excluded_packages: set[str] = {
+        "hyprland.spec",
+        "hyprland-git.spec",
+        "hyprland-contrib.spec",
+    }
+    spec_files = sorted(
+        pkg for pkg in root_dir.rglob("*.spec") if pkg.name not in excluded_packages
+    )
     if not spec_files:
         print(f"No .spec files found under {root_dir}")
         return 1
