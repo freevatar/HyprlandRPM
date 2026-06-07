@@ -1,5 +1,5 @@
-%global upstream_version 0.55.2
-%global snapshot 42
+%global upstream_version 0.55.3
+%global snapshot 1
 
 %global hyprland_commit 20ee7553c95dd1fa30a00564561f40f7986ffbc7
 %global hyprland_shortcommit %(c=%{hyprland_commit}; echo ${c:0:7})
