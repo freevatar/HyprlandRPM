@@ -1,10 +1,10 @@
 %global upstream_version 0.55.3
-%global snapshot 1
+%global snapshot 2
 
-%global hyprland_commit 20ee7553c95dd1fa30a00564561f40f7986ffbc7
+%global hyprland_commit 367beccd27df394461cc80ba845d0088b5f87690
 %global hyprland_shortcommit %(c=%{hyprland_commit}; echo ${c:0:7})
-%global hyprland_commits 7423
-%global hyprland_commit_date Sat Jun 06 13:55:52 2026
+%global hyprland_commits 7424
+%global hyprland_commit_date Sun Jun 07 18:07:01 2026
 
 %global protocols_commit 3a5c2bda1c1a4e55cc1330c782547695a93f05b2
 %global protocols_shortcommit %(c=%{protocols_commit}; echo ${c:0:7})
