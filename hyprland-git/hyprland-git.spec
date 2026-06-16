@@ -64,6 +64,7 @@ hyprdeps = {
     "pkgconfig(pangocairo)",
     "pkgconfig(pixman-1)",
     "pkgconfig(re2)",
+    "pkgconfig(readline)",
     "pkgconfig(systemd)",
     "pkgconfig(tomlplusplus)",
     "pkgconfig(uuid)",
