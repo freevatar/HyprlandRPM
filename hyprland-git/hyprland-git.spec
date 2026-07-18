@@ -1,16 +1,16 @@
 %global upstream_version 0.55.4
-%global snapshot 68
+%global snapshot 69
 
 %global lua54_compat 0
 %if 0%{?fedora} && 0%{?fedora} < 45
 %global lua54_compat 1
 %endif
 
-%global hyprland_commit 4afc273db287ad4069cc8ab3edff4a09c31d3410
+%global hyprland_commit 55ce25bd67ab6f2ae7d60883f6c626be7d2ee12f
 %global hyprland_shortcommit %(c=%{hyprland_commit}; echo ${c:0:7})
-%global hyprland_commits 7614
-%global hyprland_commit_date Fri Jul 17 11:54:36 2026
-%global hyprland_commit_message protocols/presentation: associate feedback with committed surface state, attempt 2
+%global hyprland_commits 7618
+%global hyprland_commit_date Sat Jul 18 03:24:42 2026
+%global hyprland_commit_message animation: dont .lock() a uniqueptr (#15470)
 
 %global protocols_commit bd153e76f751f150a09328dbdeb5e4fab9d23622
 %global protocols_shortcommit %(c=%{protocols_commit}; echo ${c:0:7})
