@@ -4,7 +4,7 @@ Release:        %autorelease
 Summary:        Hyprland utilities library used across the ecosystem
 
 License:        BSD-3-Clause
-URL:            https://github.com/hyprwm/%{name}
+URL:            https://github.com/hyprwm/hyprutils
 Source0:        %{url}/archive/v%{version}/%{name}-%{version}.tar.gz
 
 # https://fedoraproject.org/wiki/Changes/EncourageI686LeafRemoval
