@@ -1,10 +1,7 @@
 #!/usr/bin/env python3
 """Update Hyprland RPM snapshot metadata and trigger COPR builds.
 
-Designed for Python 3.14.6 or newer. The program intentionally retains the
-original environment-variable interface while also providing explicit command-
-line options for local use and CI. Dry runs are transactional: validated
-changes are displayed and then restored before the process exits.
+Dry runs are transactional: validated changes are displayed and then restored before the process exits.
 """
 
 from __future__ import annotations
@@ -190,7 +187,9 @@ def _atomic_write(path: Path, payload: bytes, mode: int) -> None:
         # platforms do not allow opening directories; the data replacement is
         # still complete in that case.
         try:
-            directory_fd = os.open(directory, os.O_RDONLY | getattr(os, "O_DIRECTORY", 0))
+            directory_fd = os.open(
+                directory, os.O_RDONLY | getattr(os, "O_DIRECTORY", 0)
+            )
         except OSError:
             pass
         else:
@@ -400,9 +399,7 @@ class HttpClient:
 def _bounded_read(response: Any, label: str) -> bytes:
     payload = response.read(MAX_RESPONSE_BYTES + 1)
     if len(payload) > MAX_RESPONSE_BYTES:
-        raise UpdateError(
-            f"{label} response exceeds {MAX_RESPONSE_BYTES} bytes"
-        )
+        raise UpdateError(f"{label} response exceeds {MAX_RESPONSE_BYTES} bytes")
     return payload
 
 
@@ -733,9 +730,7 @@ def update(config: Config) -> int:
             "hyprland_commit": new_commit,
             "hyprland_commits": str(commit_count),
             "hyprland_commit_date": commit_date,
-            "hyprland_commit_message": escape_rpm_shell_single_quoted(
-                commit_title
-            ),
+            "hyprland_commit_message": escape_rpm_shell_single_quoted(commit_title),
             "protocols_commit": protocols_commit,
             "udis86_commit": udis86_commit,
         }
@@ -758,10 +753,7 @@ def update(config: Config) -> int:
                 release_spec.update_globals({"upstream_version": new_tag})
             new_release = True
         case 11:
-            fail(
-                f"configured version {old_tag} is newer than latest release "
-                f"{new_tag}"
-            )
+            fail(f"configured version {old_tag} is newer than latest release {new_tag}")
         case _:
             raise AssertionError(f"unexpected comparison status: {comparison}")
 
