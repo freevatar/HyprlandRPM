@@ -1,5 +1,5 @@
 Name:           hyprsunset
-Version:        0.3.3
+Version:        0.4.0
 Release:        %autorelease -b8
 Summary:        An application to enable a blue-light filter on Hyprland
 
