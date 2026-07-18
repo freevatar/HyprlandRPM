@@ -1,20 +1,18 @@
-%global sdbus_version 2.1.0
-
 Name:           xdg-desktop-portal-hyprland
 Epoch:          1
 Version:        1.4.0
 Release:        %autorelease
-Summary:        xdg-desktop-portal backend for hyprland
+Summary:        XDG Desktop Portal backend for Hyprland
 
 License:        BSD-3-Clause
 URL:            https://github.com/hyprwm/xdg-desktop-portal-hyprland
 Source0:        %{url}/archive/v%{version}/%{name}-%{version}.tar.gz
-Source1:        https://github.com/Kistler-Group/sdbus-cpp/archive/v%{sdbus_version}/sdbus-%{sdbus_version}.tar.gz
 
-BuildRequires:  cmake
+BuildRequires:  cmake >= 3.19
 BuildRequires:  gcc-c++
 BuildRequires:  systemd-rpm-macros
 
+BuildRequires:  pkgconfig(Qt6Widgets)
 BuildRequires:  pkgconfig(gbm)
 BuildRequires:  pkgconfig(hyprland-protocols)
 BuildRequires:  pkgconfig(hyprlang) >= 0.2.0
@@ -23,42 +21,33 @@ BuildRequires:  pkgconfig(hyprwayland-scanner) >= 0.4.2
 BuildRequires:  pkgconfig(libdrm)
 BuildRequires:  pkgconfig(libpipewire-0.3) >= 1.1.82
 BuildRequires:  pkgconfig(libspa-0.2)
-BuildRequires:  pkgconfig(libsystemd)
-BuildRequires:  pkgconfig(Qt6Widgets)
-BuildRequires:  pkgconfig(systemd)
+BuildRequires:  pkgconfig(sdbus-c++) >= 2.0.0
+BuildRequires:  pkgconfig(uuid)
 BuildRequires:  pkgconfig(wayland-client)
 BuildRequires:  pkgconfig(wayland-protocols)
 BuildRequires:  pkgconfig(wayland-scanner)
 
-Requires:       dbus
-
-# Required for Screenshot portal implementation
 Requires:       grim
-Recommends:     hyprpicker
-
-Requires:       xdg-desktop-portal
-
-# Required for hyprland-share-picker
-Requires:       slurp
 Requires:       qt6-qtwayland
+Requires:       slurp
+Requires:       xdg-desktop-portal
+Recommends:     hyprpicker
 
 Enhances:       hyprland
 Supplements:    hyprland
 Supplements:    hyprland-git
 
-Provides:       bundled(sdbus-cpp) = %{sdbus_version}
-
 %description
-%{summary}.
+%{name} is an XDG Desktop Portal backend for Hyprland. It provides
+Hyprland-specific portal implementations for desktop integration, including
+screen capture and screenshot support.
 
 %prep
 %autosetup -p1
-tar -xf %{SOURCE1} -C subprojects/sdbus-cpp --strip=1
 
 %build
 %cmake \
-    -DBUILD_SHARED_LIBS:BOOL=OFF \
-    -DCMAKE_BUILD_TYPE=Release
+    -DSYSTEMD_SERVICES:BOOL=ON
 %cmake_build
 
 %install
@@ -74,9 +63,9 @@ tar -xf %{SOURCE1} -C subprojects/sdbus-cpp --strip=1
 %license LICENSE
 %doc README.md
 %{_bindir}/hyprland-share-picker
+%{_libexecdir}/%{name}
 %{_datadir}/dbus-1/services/org.freedesktop.impl.portal.desktop.hyprland.service
 %{_datadir}/xdg-desktop-portal/portals/hyprland.portal
-%{_libexecdir}/%{name}
 %{_userunitdir}/%{name}.service
 
 %changelog
