@@ -1,16 +1,16 @@
 %global upstream_version 0.55.4
-%global snapshot 70
+%global snapshot 71
 
 %global lua54_compat 0
 %if 0%{?fedora} && 0%{?fedora} < 45
 %global lua54_compat 1
 %endif
 
-%global hyprland_commit ef903b892747f17dc2a8768675a15134f4ebd95f
+%global hyprland_commit 271b0d1eb4fc4899c8607c5e9d4eacbfb0282a62
 %global hyprland_shortcommit %(c=%{hyprland_commit}; echo ${c:0:7})
-%global hyprland_commits 7620
-%global hyprland_commit_date Sun Jul 19 04:22:22 2026
-%global hyprland_commit_message [gha] Nix: update inputs
+%global hyprland_commits 7623
+%global hyprland_commit_date Sun Jul 19 08:14:19 2026
+%global hyprland_commit_message desktop/focusstate: restore keyboard focus after layer closed (#15419)
 
 %global protocols_commit bd153e76f751f150a09328dbdeb5e4fab9d23622
 %global protocols_shortcommit %(c=%{protocols_commit}; echo ${c:0:7})
