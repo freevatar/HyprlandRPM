@@ -1,4 +1,4 @@
-%global upstream_version 0.55.4
+%global upstream_version 0.56.0
 
 Name:           hyprland
 Version:        %{upstream_version}

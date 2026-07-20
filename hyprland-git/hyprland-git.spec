@@ -1,16 +1,16 @@
-%global upstream_version 0.55.4
-%global snapshot 72
+%global upstream_version 0.56.0
+%global snapshot 1
 
 %global lua54_compat 0
 %if 0%{?fedora} && 0%{?fedora} < 45
 %global lua54_compat 1
 %endif
 
-%global hyprland_commit 42b15274bcde7d9add76dfc70b0bb70c7a870305
+%global hyprland_commit 36b2e0cfe0c6094dbc47bd42a437431315bb3087
 %global hyprland_shortcommit %(c=%{hyprland_commit}; echo ${c:0:7})
-%global hyprland_commits 7624
-%global hyprland_commit_date Sun Jul 19 16:35:00 2026
-%global hyprland_commit_message ci(codeowners-plus): fetch PR head before trying to diff against it (#15486)
+%global hyprland_commits 7625
+%global hyprland_commit_date Mon Jul 20 03:50:48 2026
+%global hyprland_commit_message version: bump to 0.56.0
 
 %global protocols_commit bd153e76f751f150a09328dbdeb5e4fab9d23622
 %global protocols_shortcommit %(c=%{protocols_commit}; echo ${c:0:7})
