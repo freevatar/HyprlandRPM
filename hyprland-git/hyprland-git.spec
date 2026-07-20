@@ -1,16 +1,16 @@
 %global upstream_version 0.56.0
-%global snapshot 2
+%global snapshot 3
 
 %global lua54_compat 0
 %if 0%{?fedora} && 0%{?fedora} < 45
 %global lua54_compat 1
 %endif
 
-%global hyprland_commit 5b260faeb9e4563b9e6bd74450a97f39a9d708e9
+%global hyprland_commit 2174f26a142d32823ceb8d7039e39eef52dbd050
 %global hyprland_shortcommit %(c=%{hyprland_commit}; echo ${c:0:7})
-%global hyprland_commits 7626
-%global hyprland_commit_date Mon Jul 20 06:49:39 2026
-%global hyprland_commit_message init: gain real-time through rtkit (again) (#15465)
+%global hyprland_commits 7627
+%global hyprland_commit_date Mon Jul 20 15:04:25 2026
+%global hyprland_commit_message view: do not render monitor for tearing if it'\''s blocked (#15500)
 
 %global protocols_commit bd153e76f751f150a09328dbdeb5e4fab9d23622
 %global protocols_shortcommit %(c=%{protocols_commit}; echo ${c:0:7})
