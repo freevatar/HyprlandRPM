@@ -1,16 +1,16 @@
 %global upstream_version 0.56.0
-%global snapshot 1
+%global snapshot 2
 
 %global lua54_compat 0
 %if 0%{?fedora} && 0%{?fedora} < 45
 %global lua54_compat 1
 %endif
 
-%global hyprland_commit 36b2e0cfe0c6094dbc47bd42a437431315bb3087
+%global hyprland_commit 5b260faeb9e4563b9e6bd74450a97f39a9d708e9
 %global hyprland_shortcommit %(c=%{hyprland_commit}; echo ${c:0:7})
-%global hyprland_commits 7625
-%global hyprland_commit_date Mon Jul 20 03:50:48 2026
-%global hyprland_commit_message version: bump to 0.56.0
+%global hyprland_commits 7626
+%global hyprland_commit_date Mon Jul 20 06:49:39 2026
+%global hyprland_commit_message init: gain real-time through rtkit (again) (#15465)
 
 %global protocols_commit bd153e76f751f150a09328dbdeb5e4fab9d23622
 %global protocols_shortcommit %(c=%{protocols_commit}; echo ${c:0:7})
