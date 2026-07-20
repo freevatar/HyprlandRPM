@@ -1,16 +1,16 @@
 %global upstream_version 0.55.4
-%global snapshot 71
+%global snapshot 72
 
 %global lua54_compat 0
 %if 0%{?fedora} && 0%{?fedora} < 45
 %global lua54_compat 1
 %endif
 
-%global hyprland_commit 271b0d1eb4fc4899c8607c5e9d4eacbfb0282a62
+%global hyprland_commit 42b15274bcde7d9add76dfc70b0bb70c7a870305
 %global hyprland_shortcommit %(c=%{hyprland_commit}; echo ${c:0:7})
-%global hyprland_commits 7623
-%global hyprland_commit_date Sun Jul 19 08:14:19 2026
-%global hyprland_commit_message desktop/focusstate: restore keyboard focus after layer closed (#15419)
+%global hyprland_commits 7624
+%global hyprland_commit_date Sun Jul 19 16:35:00 2026
+%global hyprland_commit_message ci(codeowners-plus): fetch PR head before trying to diff against it (#15486)
 
 %global protocols_commit bd153e76f751f150a09328dbdeb5e4fab9d23622
 %global protocols_shortcommit %(c=%{protocols_commit}; echo ${c:0:7})
