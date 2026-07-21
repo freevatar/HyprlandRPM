@@ -70,6 +70,7 @@ BuildRequires:  pkgconfig(pangocairo)
 BuildRequires:  pkgconfig(pixman-1)
 BuildRequires:  pkgconfig(re2)
 BuildRequires:  pkgconfig(readline)
+BuildRequires:  pkgconfig(sdbus-c++) >= 2.0.0
 BuildRequires:  pkgconfig(tomlplusplus)
 BuildRequires:  pkgconfig(uuid)
 BuildRequires:  pkgconfig(wayland-protocols) >= 1.49
