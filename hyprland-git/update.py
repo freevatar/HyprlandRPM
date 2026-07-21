@@ -7,6 +7,7 @@ Dry runs are transactional: validated changes are displayed and then restored be
 from __future__ import annotations
 
 import argparse
+import base64
 import json
 import os
 import random
@@ -60,6 +61,9 @@ MONTH_ABBR: Final = (
     "Nov",
     "Dec",
 )
+MAX_COMMIT_TITLE_BYTES: Final = 4096
+SHELL_SCRIPTLET_NAMES: Final = frozenset({"prep", "build", "install", "check"})
+SPEC_SECTION_RE: Final = re.compile(r"^%(?P<name>[A-Za-z][A-Za-z0-9_]*)\b")
 
 
 class UpdateError(RuntimeError):
@@ -234,16 +238,20 @@ def run_command(
     check: bool = True,
     capture_output: bool = False,
     stdout: int | None = None,
+    input_text: str | None = None,
 ) -> subprocess.CompletedProcess[str]:
+    """Run a command with deterministic UTF-8 text handling."""
+
     command = [os.fspath(argument) for argument in arguments]
 
     try:
         result = subprocess.run(
             command,
             check=False,
-            stdin=subprocess.DEVNULL,
-            stdout=(subprocess.PIPE if capture_output else stdout),
-            stderr=(subprocess.PIPE if capture_output else None),
+            input=input_text,
+            stdin=subprocess.DEVNULL if input_text is None else None,
+            stdout=subprocess.PIPE if capture_output else stdout,
+            stderr=subprocess.PIPE if capture_output else None,
             text=True,
             encoding="utf-8",
             errors="replace",
@@ -484,13 +492,7 @@ class GitHubClient:
         committer = _expect_mapping(commit.get("committer"), "main commit committer")
         timestamp = _expect_string(committer.get("date"), "main commit date")
         message = _expect_text(commit.get("message"), "main commit message")
-        lines = message.splitlines()
-        title = lines[0] if lines else ""
-        title = "".join(
-            " " if unicodedata.category(character) == "Cc" else character
-            for character in title
-        )
-        return sha, timestamp, title
+        return sha, timestamp, normalize_commit_title(message)
 
     def commit_count(self, commit: str) -> int:
         payload, headers = self.get_json(
@@ -566,6 +568,33 @@ def _last_page_from_link_header(link_header: str | None) -> int | None:
     return None
 
 
+def normalize_commit_title(message: str) -> str:
+    """Return a bounded, single-line title suitable for package metadata."""
+
+    lines = message.splitlines()
+    title = unicodedata.normalize("NFC", lines[0] if lines else "")
+    title = "".join(
+        " " if unicodedata.category(character) == "Cc" else character
+        for character in title
+    )
+    title = " ".join(title.split())
+
+    if not title:
+        fail("the upstream commit title is empty after normalization")
+
+    size = len(title.encode("utf-8"))
+    if size > MAX_COMMIT_TITLE_BYTES:
+        fail(f"the upstream commit title exceeds {MAX_COMMIT_TITLE_BYTES} UTF-8 bytes")
+
+    return title
+
+
+def encode_text_base64(value: str) -> str:
+    """Encode arbitrary UTF-8 text into an RPM-macro-safe alphabet."""
+
+    return base64.b64encode(value.encode("utf-8")).decode("ascii")
+
+
 def format_commit_date(iso_timestamp: str) -> str:
     try:
         timestamp = datetime.fromisoformat(iso_timestamp.replace("Z", "+00:00"))
@@ -593,12 +622,6 @@ def format_commit_date(iso_timestamp: str) -> str:
     )
 
 
-def escape_rpm_shell_single_quoted(value: str) -> str:
-    """Escape a value expanded by RPM inside a shell single-quoted string."""
-
-    return value.replace("%", "%%").replace("'", "'\\''")
-
-
 def compare_rpm_versions(old_version: str, new_version: str) -> int:
     result = run_command(
         ["rpmdev-vercmp", old_version, new_version],
@@ -612,11 +635,59 @@ def compare_rpm_versions(old_version: str, new_version: str) -> int:
     return result.returncode
 
 
+def extract_shell_scriptlets(expanded_spec: str) -> dict[str, str]:
+    """Extract shell-backed build sections from an expanded RPM spec."""
+
+    sections: dict[str, list[str]] = {}
+    current: str | None = None
+
+    for line in expanded_spec.splitlines(keepends=True):
+        match = SPEC_SECTION_RE.match(line)
+        if match is not None:
+            section = match.group("name")
+            current = section if section in SHELL_SCRIPTLET_NAMES else None
+            if current is not None:
+                sections.setdefault(current, [])
+            continue
+
+        if current is not None:
+            sections[current].append(line)
+
+    return {
+        section: "".join(lines)
+        for section, lines in sections.items()
+        if any(line.strip() for line in lines)
+    }
+
+
+def validate_shell_scriptlets(path: Path, expanded_spec: str) -> None:
+    """Reject malformed generated shell before committing or invoking COPR."""
+
+    for section, script in extract_shell_scriptlets(expanded_spec).items():
+        result = run_command(
+            ["/bin/sh", "-n"],
+            check=False,
+            capture_output=True,
+            input_text=script,
+        )
+        if result.returncode == 0:
+            continue
+
+        details = (result.stderr or "").strip()
+        suffix = f": {details}" if details else ""
+        fail(f"{path}: invalid %{section} shell syntax{suffix}")
+
+
 def validate_specs(specs: Sequence[SpecDocument]) -> None:
     paths = [spec.path for spec in specs]
     run_git(["diff", "--check", "--", *paths])
+
     for spec in specs:
-        run_command(["rpmspec", "-P", spec.path], stdout=subprocess.DEVNULL)
+        expanded_spec = run_command(
+            ["rpmspec", "-P", spec.path],
+            capture_output=True,
+        ).stdout
+        validate_shell_scriptlets(spec.path, expanded_spec)
 
 
 def restore_specs(specs: Sequence[SpecDocument]) -> None:
@@ -730,7 +801,7 @@ def update(config: Config) -> int:
             "hyprland_commit": new_commit,
             "hyprland_commits": str(commit_count),
             "hyprland_commit_date": commit_date,
-            "hyprland_commit_message": escape_rpm_shell_single_quoted(commit_title),
+            "hyprland_commit_message_b64": encode_text_base64(commit_title),
             "protocols_commit": protocols_commit,
             "udis86_commit": udis86_commit,
         }

@@ -10,7 +10,7 @@
 %global hyprland_shortcommit %(c=%{hyprland_commit}; echo ${c:0:7})
 %global hyprland_commits 7627
 %global hyprland_commit_date Mon Jul 20 15:04:25 2026
-%global hyprland_commit_message view: do not render monitor for tearing if it'\''s blocked (#15500)
+%global hyprland_commit_message_b64 dmlldzogZG8gbm90IHJlbmRlciBtb25pdG9yIGZvciB0ZWFyaW5nIGlmIGl0J3MgYmxvY2tlZCAoIzE1NTAwKQ==
 
 %global protocols_commit bd153e76f751f150a09328dbdeb5e4fab9d23622
 %global protocols_shortcommit %(c=%{protocols_commit}; echo ${c:0:7})
@@ -184,13 +184,18 @@ cp -p %{SOURCE3} macros.hyprland
 sed -i 's|@@HYPRLAND_VERSION@@|%{version}|g' macros.hyprland
 
 %build
-export GIT_COMMIT_HASH='%{hyprland_commit}'
-export GIT_BRANCH='main'
-export GIT_COMMIT_MESSAGE='%{hyprland_commit_message}'
-export GIT_COMMIT_DATE='%{hyprland_commit_date}'
-export GIT_DIRTY='clean'
-export GIT_TAG='unknown'
-export GIT_COMMITS='%{hyprland_commits}'
+# The updater stores the normalized commit title as Base64; decode it only after macro expansion.
+export GIT_COMMIT_HASH=%{shescape:%{hyprland_commit}}
+export GIT_BRANCH=%{shescape:main}
+export GIT_COMMIT_DATE=%{shescape:%{hyprland_commit_date}}
+export GIT_DIRTY=%{shescape:clean}
+export GIT_TAG=%{shescape:unknown}
+export GIT_COMMITS=%{shescape:%{hyprland_commits}}
+
+GIT_COMMIT_MESSAGE="$(
+    printf '%%s' %{shescape:%{hyprland_commit_message_b64}} | base64 --decode
+)"
+export GIT_COMMIT_MESSAGE
 
 %cmake \
     -G Ninja \
