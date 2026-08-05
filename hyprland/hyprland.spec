@@ -1,4 +1,4 @@
-%global upstream_version 0.56.1
+%global upstream_version 0.56.2
 
 %global lua54_compat 0
 %if 0%{?fedora} && 0%{?fedora} < 45
