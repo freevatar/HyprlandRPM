@@ -1,12 +1,15 @@
 Name:           xdg-desktop-portal-hyprland
 Epoch:          1
-Version:        1.4.0
+Version:        1.4.1
 Release:        %autorelease
 Summary:        XDG Desktop Portal backend for Hyprland
 
 License:        BSD-3-Clause
 URL:            https://github.com/hyprwm/xdg-desktop-portal-hyprland
 Source0:        %{url}/archive/v%{version}/%{name}-%{version}.tar.gz
+
+Patch:          https://github.com/hyprwm/xdg-desktop-portal-hyprland/commit/b653ab53a435e92cc00f34771e6823bc59f2f740.patch
+Patch:          https://github.com/hyprwm/xdg-desktop-portal-hyprland/commit/688feb3d88404598f12440a668136e74044391de.patch
 
 BuildRequires:  cmake >= 3.19
 BuildRequires:  gcc-c++

@@ -47,6 +47,7 @@ BuildRequires:  pkgconfig(gio-2.0)
 BuildRequires:  pkgconfig(glesv2)
 BuildRequires:  pkgconfig(glslang)
 BuildRequires:  pkgconfig(lcms2)
+BuildRequires:  pkgconfig(libcanberra)
 BuildRequires:  pkgconfig(libdrm)
 BuildRequires:  pkgconfig(libeis-1.0)
 BuildRequires:  pkgconfig(libinput) >= 1.29
