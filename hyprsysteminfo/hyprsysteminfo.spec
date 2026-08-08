@@ -1,6 +1,6 @@
 Name:           hyprsysteminfo
 Version:        0.2.0
-Release:        %autorelease -b5
+Release:        %autorelease -b6
 Summary:        System information utility for Hyprland
 
 License:        BSD-3-Clause
