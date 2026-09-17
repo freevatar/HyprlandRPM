@@ -1,0 +1,13 @@
+--- a/CMakeLists.txt
++++ b/CMakeLists.txt
+@@ -250,6 +250,10 @@
+ endif()
+ 
++# Commit titles become C++ string literals in version.h.
++string(REPLACE "\\" "\\\\" GIT_COMMIT_MESSAGE "${GIT_COMMIT_MESSAGE}")
++string(REPLACE "\"" "\\\"" GIT_COMMIT_MESSAGE "${GIT_COMMIT_MESSAGE}")
++
+ configure_file(
+     ${CMAKE_SOURCE_DIR}/src/version.h.in
+     ${CMAKE_SOURCE_DIR}/src/version.h
+     @ONLY

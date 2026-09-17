@@ -1,4 +1,5 @@
 %global upstream_version 0.56.2
+%global hyprland_commit efb50993780079460b0cbed1363e2166a2de1d9f
 
 %global lua54_compat 0
 %if 0%{?fedora} && 0%{?fedora} < 45
@@ -7,7 +8,7 @@
 
 Name:           hyprland
 Version:        %{upstream_version}
-Release:        %autorelease
+Release:        %autorelease -b3
 Summary:        Dynamic tiling Wayland compositor that doesn't sacrifice on its looks
 
 # Hyprland: BSD-3-Clause
@@ -21,11 +22,15 @@ License:        BSD-3-Clause AND BSD-2-Clause AND HPND-sell-variant AND LGPL-2.1
 URL:            https://github.com/hyprwm/Hyprland
 Source0:        %{url}/releases/download/v%{upstream_version}/source-v%{upstream_version}.tar.gz
 Source1:        macros.hyprland
+Patch0:         escape-version-metadata.patch
+Patch1:         lua54-hyprpm.patch
 
 # Build tools
 BuildRequires:  cmake >= 3.30
 BuildRequires:  gcc-c++
-BuildRequires:  glaze-static
+# Hyprland 0.56.2's CMakeLists.txt requires Glaze 7...<8.
+BuildRequires:  glaze-static >= 7
+BuildRequires:  glaze-static < 8
 BuildRequires:  ninja-build
 BuildRequires:  python3
 
@@ -34,7 +39,7 @@ BuildRequires:  pkgconfig(aquamarine) >= 0.9.3
 BuildRequires:  pkgconfig(hyprcursor) >= 0.1.7
 BuildRequires:  pkgconfig(hyprgraphics) >= 0.5.1
 BuildRequires:  pkgconfig(hyprlang) >= 0.6.7
-BuildRequires:  pkgconfig(hyprutils) >= 0.13.1
+BuildRequires:  pkgconfig(hyprutils) >= 0.14.0
 BuildRequires:  pkgconfig(hyprwayland-scanner) >= 0.3.10
 BuildRequires:  pkgconfig(hyprwire)
 
@@ -89,7 +94,7 @@ Requires:       aquamarine%{?_isa} >= 0.9.3
 Requires:       hyprcursor%{?_isa} >= 0.1.7
 Requires:       hyprgraphics%{?_isa} >= 0.5.1
 Requires:       hyprlang%{?_isa} >= 0.6.7
-Requires:       hyprutils%{?_isa} >= 0.13.1
+Requires:       hyprutils%{?_isa} >= 0.14.0
 Requires:       xorg-x11-server-Xwayland%{?_isa}
 
 # Used by the default configuration.
@@ -131,10 +136,12 @@ building software and plugins against %{name}.
 
 %prep
 %autosetup -n hyprland-source -N
+%patch -P 0 -p1
 
 # Temporary compatibility for Fedora releases that still provide Lua 5.4
 # Drop this branch once all supported Fedora releases provide Lua 5.5
 %if %{lua54_compat}
+%patch -P 1 -p1
 sed -Ei \
     's|^pkg_search_module\(LUA .*$|pkg_search_module(LUA REQUIRED IMPORTED_TARGET GLOBAL lua)|' \
     CMakeLists.txt
@@ -152,6 +159,7 @@ cp -p %{SOURCE1} macros.hyprland
 sed -i 's|@@HYPRLAND_VERSION@@|%{version}|g' macros.hyprland
 
 %build
+export GIT_COMMIT_HASH=%{shescape:%{hyprland_commit}}
 export GIT_TAG=%{shescape:%{upstream_version}}
 export GIT_DIRTY=%{shescape:clean}
 

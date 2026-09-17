@@ -1,7 +1,7 @@
 #!/usr/bin/env python3
-"""Update Hyprland RPM snapshot metadata and trigger COPR builds.
+"""Update stable and snapshot Hyprland source metadata without committing or building.
 
-Dry runs are transactional: validated changes are displayed and then restored before the process exits.
+Changes are validated together; a dry run displays them and restores both specs.
 """
 
 from __future__ import annotations
@@ -36,14 +36,13 @@ MINIMUM_PYTHON: Final = (3, 14, 6)
 GITHUB_API: Final = "https://api.github.com"
 GITHUB_API_VERSION: Final = "2026-03-10"
 GITHUB_REPOSITORY: Final = "hyprwm/Hyprland"
-COPR_BASE_URL: Final = "https://copr.fedorainfracloud.org/webhooks/custom"
 
 HTTP_TIMEOUT_SECONDS: Final = 10.0
 HTTP_ATTEMPTS: Final = 8
+MAX_RETRY_DELAY_SECONDS: Final = 30.0
 MAX_RESPONSE_BYTES: Final = 8 * 1024 * 1024
 RETRYABLE_HTTP_STATUSES: Final = frozenset({408, 425, 429, 500, 502, 503, 504})
 SHA1_RE: Final = re.compile(r"[0-9a-f]{40}\Z")
-BUILD_ID_RE: Final = re.compile(r"[0-9]+\Z")
 
 WEEKDAY_ABBR: Final = ("Mon", "Tue", "Wed", "Thu", "Fri", "Sat", "Sun")
 MONTH_ABBR: Final = (
@@ -300,42 +299,26 @@ def git_diff_is_quiet(paths: Sequence[Path], *, cached: bool = False) -> bool:
     raise UpdateError(f"git diff failed with status {result.returncode}")
 
 
-def parse_boolean(value: str | None, *, default: bool = False) -> bool:
-    if value is None:
-        return default
-
-    normalized = value.strip().casefold()
-    if normalized in {"1", "true", "yes", "on"}:
-        return True
-    if normalized in {"0", "false", "no", "off", ""}:
-        return False
-    fail(f"invalid boolean value: {value!r}")
-
-
 def parse_arguments() -> Config:
+    root = Path(__file__).resolve().parents[1]
     parser = argparse.ArgumentParser(
-        description="Update Hyprland RPM snapshot metadata and trigger COPR builds."
+        description="Update stable and snapshot Hyprland source metadata."
     )
     parser.add_argument(
-        "--git-spec",
-        type=Path,
-        default=Path(os.environ.get("GIT_SPEC", "hyprland-git.spec")),
-        help="snapshot spec path (default: GIT_SPEC or hyprland-git.spec)",
+        "--git-spec", type=Path,
+        default=root / "hyprland-git/hyprland-git.spec",
+        help="snapshot spec path (default: this repository's snapshot spec)",
     )
     parser.add_argument(
-        "--release-spec",
-        type=Path,
-        default=Path(os.environ.get("REL_SPEC", "../hyprland/hyprland.spec")),
-        help="release spec path (default: REL_SPEC or ../hyprland/hyprland.spec)",
+        "--release-spec", type=Path,
+        default=root / "hyprland/hyprland.spec",
+        help="stable spec path (default: this repository's stable spec)",
     )
     parser.add_argument(
-        "--dry-run",
-        action="store_true",
-        default=parse_boolean(os.environ.get("DRY_RUN")),
-        help="validate and show changes without committing or building",
+        "--dry-run", action="store_true",
+        help="validate and show changes, then restore both specs",
     )
     arguments = parser.parse_args()
-
     return Config(
         git_spec=arguments.git_spec,
         release_spec=arguments.release_spec,
@@ -350,44 +333,28 @@ class HttpClient:
     def __init__(self, default_headers: Mapping[str, str] | None = None) -> None:
         self._default_headers = dict(default_headers or {})
 
-    def request(
-        self,
-        url: str,
-        *,
-        label: str,
-        method: str = "GET",
-        data: bytes | None = None,
-        headers: Mapping[str, str] | None = None,
-    ) -> tuple[bytes, HTTPMessage]:
-        request_headers = self._default_headers | dict(headers or {})
-
+    def request(self, url: str, *, label: str) -> tuple[bytes, HTTPMessage]:
         for attempt in range(HTTP_ATTEMPTS):
-            request = Request(
-                url,
-                data=data,
-                headers=request_headers,
-                method=method,
-            )
+            request = Request(url, headers=self._default_headers, method="GET")
             try:
                 with urlopen(request, timeout=HTTP_TIMEOUT_SECONDS) as response:
-                    payload = _bounded_read(response, label)
-                    return payload, response.headers
+                    return _bounded_read(response, label), response.headers
             except HTTPError as exc:
-                body = _read_http_error_body(exc)
+                try:
+                    retry_after = exc.headers.get("Retry-After")
+                finally:
+                    exc.close()
                 if exc.code in RETRYABLE_HTTP_STATUSES and attempt + 1 < HTTP_ATTEMPTS:
-                    _sleep_before_retry(attempt, exc.headers.get("Retry-After"))
+                    _sleep_before_retry(attempt, retry_after)
                     continue
-                detail = _compact_http_body(body)
-                suffix = f": {detail}" if detail else ""
-                raise UpdateError(
-                    f"{label} failed with HTTP status {exc.code}{suffix}"
-                ) from exc
+                # Server responses and transport errors can echo credentials.
+                # Report the operation and status, never headers or response bodies.
+                raise UpdateError(f"{label} failed with HTTP status {exc.code}") from None
             except (TimeoutError, URLError, ConnectionError) as exc:
                 if attempt + 1 < HTTP_ATTEMPTS:
                     _sleep_before_retry(attempt, None)
                     continue
-                reason = getattr(exc, "reason", exc)
-                raise UpdateError(f"{label} failed after retries: {reason}") from exc
+                raise UpdateError(f"{label} failed ({type(exc).__name__})") from None
 
         raise AssertionError("HTTP retry loop exhausted unexpectedly")
 
@@ -411,19 +378,6 @@ def _bounded_read(response: Any, label: str) -> bytes:
     return payload
 
 
-def _read_http_error_body(error: HTTPError) -> bytes:
-    try:
-        return error.read(64 * 1024)
-    except OSError:
-        return b""
-
-
-def _compact_http_body(body: bytes) -> str:
-    text = body.decode("utf-8", errors="replace")
-    text = " ".join(text.split())
-    return text[:500]
-
-
 def _retry_after_seconds(value: str | None) -> float | None:
     if value is None:
         return None
@@ -443,9 +397,10 @@ def _retry_after_seconds(value: str | None) -> float | None:
 
 def _sleep_before_retry(attempt: int, retry_after: str | None) -> None:
     server_delay = _retry_after_seconds(retry_after)
-    exponential_delay = min(30.0, 0.5 * (2**attempt))
+    exponential_delay = min(MAX_RETRY_DELAY_SECONDS, 0.5 * (2**attempt))
     jitter = random.uniform(0.0, 0.25 * exponential_delay)
-    time.sleep(max(server_delay or 0.0, exponential_delay + jitter))
+    delay = max(server_delay or 0.0, exponential_delay + jitter)
+    time.sleep(min(MAX_RETRY_DELAY_SECONDS, delay))
 
 
 class GitHubClient:
@@ -493,6 +448,15 @@ class GitHubClient:
         timestamp = _expect_string(committer.get("date"), "main commit date")
         message = _expect_text(commit.get("message"), "main commit message")
         return sha, timestamp, normalize_commit_title(message)
+
+    def release_commit(self, version: str) -> str:
+        # The commits endpoint peels both annotated and lightweight tags.
+        payload, _ = self.get_json(
+            f"/repos/{GITHUB_REPOSITORY}/commits/v{version}",
+            label=f"resolving Hyprland release v{version}",
+        )
+        commit = _expect_mapping(payload, "release commit")
+        return _expect_sha(commit.get("sha"), "release commit")
 
     def commit_count(self, commit: str) -> int:
         payload, headers = self.get_json(
@@ -661,7 +625,7 @@ def extract_shell_scriptlets(expanded_spec: str) -> dict[str, str]:
 
 
 def validate_shell_scriptlets(path: Path, expanded_spec: str) -> None:
-    """Reject malformed generated shell before committing or invoking COPR."""
+    """Reject malformed shell in expanded RPM build sections."""
 
     for section, script in extract_shell_scriptlets(expanded_spec).items():
         result = run_command(
@@ -739,45 +703,16 @@ def finish_dry_run(
         restore_specs(specs)
 
 
-def trigger_copr_build(package: str, webhook_id: str, webhook_token: str) -> None:
-    # Keep this URL out of diagnostics because it embeds credentials.
-    url = f"{COPR_BASE_URL}/{webhook_id}/{webhook_token}/{package}"
-    client = HttpClient({"User-Agent": "HyprlandRPM-update/2"})
-    payload, _ = client.request(
-        url,
-        label=f"triggering the {package} COPR build",
-        method="POST",
-        data=b"",
-    )
-    build_id = payload.decode("utf-8", errors="replace").strip()
-    if BUILD_ID_RE.fullmatch(build_id) is None:
-        fail(f"unexpected COPR webhook response for {package}: {build_id!r}")
-    run_command(["copr", "watch-build", build_id])
-
-
-def require_secret(name: str) -> str:
-    value = os.environ.get(name)
-    if not value:
-        fail(f"{name} must be set")
-    if any(character in value for character in "\r\n/"):
-        fail(f"{name} contains an invalid character")
-    return value
-
-
 def update(config: Config) -> int:
-    require_commands(("git", "rpmdev-vercmp", "rpmspec"))
-
+    require_commands(("git", "rpmdev-vercmp", "rpmspec", "sh"))
     git_spec = SpecDocument.load(config.git_spec)
-    release_spec = (
-        SpecDocument.load(config.release_spec)
-        if config.release_spec.is_file()
-        else None
-    )
-    managed_specs = [git_spec]
-    if release_spec is not None:
-        managed_specs.append(release_spec)
-
+    release_spec = SpecDocument.load(config.release_spec)
+    managed_specs = [git_spec, release_spec]
     managed_paths = [spec.path for spec in managed_specs]
+
+    if config.git_spec.resolve() == config.release_spec.resolve():
+        fail("snapshot and stable spec paths must differ")
+    run_git(["ls-files", "--error-unmatch", "--", *managed_paths], capture_output=True)
     if not git_diff_is_quiet(managed_paths):
         fail("managed spec files have uncommitted changes")
     if not git_diff_is_quiet(managed_paths, cached=True):
@@ -807,7 +742,6 @@ def update(config: Config) -> int:
         }
     )
 
-    new_release = False
     comparison = compare_rpm_versions(old_tag, new_tag)
     match comparison:
         case 0:
@@ -820,60 +754,53 @@ def update(config: Config) -> int:
                     "snapshot": "0",
                 }
             )
-            if release_spec is not None:
-                release_spec.update_globals({"upstream_version": new_tag})
-            new_release = True
         case 11:
             fail(f"configured version {old_tag} is newer than latest release {new_tag}")
         case _:
             raise AssertionError(f"unexpected comparison status: {comparison}")
 
-    if not any(spec.changed for spec in managed_specs):
-        log("Already up to date")
+    release_version = release_spec.get_global("upstream_version")
+    if compare_rpm_versions(release_version, new_tag) == 11:
+        fail(f"configured release version {release_version} is newer than latest release {new_tag}")
+    # Stable can lag behind even when the snapshot already uses this release.
+    # Always resolve the tag, including when correcting a stale commit identity.
+    release_spec.update_globals({
+        "upstream_version": new_tag,
+        "hyprland_commit": github.release_commit(new_tag),
+    })
+
+    if git_spec.changed:
+        snapshot_text = git_spec.get_global("snapshot")
+        if not snapshot_text.isdecimal():
+            fail(f"invalid snapshot value: {snapshot_text!r}")
+        git_spec.update_globals({"snapshot": str(int(snapshot_text) + 1)})
+
+    changed_specs = [spec for spec in managed_specs if spec.changed]
+    if not changed_specs:
+        log("Spec metadata is already up to date")
         return 0
 
-    snapshot_text = git_spec.get_global("snapshot")
-    if not snapshot_text.isdecimal():
-        fail(f"invalid snapshot value: {snapshot_text!r}")
-    git_spec.update_globals({"snapshot": str(int(snapshot_text) + 1)})
-
     try:
-        for spec in managed_specs:
+        for spec in changed_specs:
             spec.write()
         log("Validating updated spec files")
         validate_specs(managed_specs)
-    except BaseException:
-        restore_specs(managed_specs)
+    except BaseException as update_error:
+        try:
+            restore_specs(changed_specs)
+        except BaseException as restore_error:
+            raise BaseExceptionGroup(
+                "metadata update failed and spec restoration also failed",
+                [update_error, restore_error],
+            ) from None
         raise
 
     if config.dry_run:
         log("Dry run; displaying validated changes")
-        finish_dry_run(managed_specs, managed_paths)
+        finish_dry_run(changed_specs, managed_paths)
         log("Dry run complete; restored managed spec files")
-        return 0
-
-    require_commands(("copr",))
-    webhook_id = require_secret("COPR_WEBHOOK_ID")
-    webhook_token = require_secret("COPR_WEBHOOK_TOKEN")
-
-    log("Committing and pushing the update")
-    run_git(["add", "--", *managed_paths])
-    run_git(
-        [
-            "commit",
-            "-m",
-            f"up rev hyprland-git-{new_tag}+{new_commit[:7]}",
-        ]
-    )
-    run_git(["push"])
-
-    log("Starting the hyprland-git COPR build")
-    trigger_copr_build("hyprland-git", webhook_id, webhook_token)
-
-    if new_release:
-        log("Starting the release Hyprland COPR build")
-        trigger_copr_build("hyprland", webhook_id, webhook_token)
-
+    else:
+        log("Updated " + ", ".join(str(spec.path) for spec in changed_specs))
     return 0
 
 

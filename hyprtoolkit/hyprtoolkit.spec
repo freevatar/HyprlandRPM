@@ -1,6 +1,6 @@
 Name:           hyprtoolkit
 Version:        0.5.4
-Release:        %autorelease -b7
+Release:        %autorelease -b8
 Summary:        A modern C++ Wayland-native GUI toolkit
 
 License:        BSD-3-Clause
@@ -15,7 +15,7 @@ BuildRequires:  cmake(hyprwayland-scanner) >= 0.4.0
 BuildRequires:  gcc-c++
 BuildRequires:  ninja-build
 
-BuildRequires:  pkgconfig(aquamarine) >= 0.10.0
+BuildRequires:  pkgconfig(aquamarine) >= 0.15.0
 BuildRequires:  pkgconfig(cairo)
 BuildRequires:  pkgconfig(egl)
 BuildRequires:  pkgconfig(gbm)
@@ -39,7 +39,7 @@ BuildRequires:  pkgconfig(xkbcommon)
 %package        devel
 Summary:        Development files for %{name}
 Requires:       %{name}%{?_isa} = %{version}-%{release}
-Requires:       pkgconfig(aquamarine) >= 0.10.0
+Requires:       pkgconfig(aquamarine) >= 0.15.0
 Requires:       pkgconfig(cairo)
 Requires:       pkgconfig(hyprgraphics) >= 0.3.0
 Requires:       pkgconfig(hyprlang) >= 0.6.0

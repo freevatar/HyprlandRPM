@@ -1,0 +1,113 @@
+{
+  "dependencies": {
+    "aquamarine": [
+      "hyprutils",
+      "hyprwayland-scanner"
+    ],
+    "glaze": [],
+    "hyprcursor": [
+      "hyprlang"
+    ],
+    "hyprgraphics": [
+      "hyprutils"
+    ],
+    "hyprland": [
+      "aquamarine",
+      "glaze",
+      "hyprcursor",
+      "hyprgraphics",
+      "hyprlang",
+      "hyprutils",
+      "hyprwayland-scanner",
+      "hyprwire"
+    ],
+    "hyprland-git": [
+      "aquamarine",
+      "glaze",
+      "hyprcursor",
+      "hyprgraphics",
+      "hyprlang",
+      "hyprutils",
+      "hyprwayland-scanner",
+      "hyprwire"
+    ],
+    "hyprland-guiutils": [
+      "hyprlang",
+      "hyprtoolkit",
+      "hyprutils"
+    ],
+    "hyprland-protocols": [],
+    "hyprland-qt-support": [
+      "hyprlang"
+    ],
+    "hyprlang": [
+      "hyprutils"
+    ],
+    "hyprlauncher": [
+      "hyprlang",
+      "hyprtoolkit",
+      "hyprutils",
+      "hyprwire"
+    ],
+    "hyprlock": [
+      "hyprgraphics",
+      "hyprlang",
+      "hyprutils",
+      "hyprwayland-scanner"
+    ],
+    "hyprpaper": [
+      "hyprlang",
+      "hyprtoolkit",
+      "hyprutils",
+      "hyprwayland-scanner",
+      "hyprwire"
+    ],
+    "hyprpicker": [
+      "hyprutils",
+      "hyprwayland-scanner"
+    ],
+    "hyprpolkitagent": [
+      "hyprutils"
+    ],
+    "hyprpwcenter": [
+      "hyprtoolkit",
+      "hyprutils"
+    ],
+    "hyprqt6engine": [
+      "hyprlang",
+      "hyprutils"
+    ],
+    "hyprshot": [],
+    "hyprsunset": [
+      "hyprland-protocols",
+      "hyprlang",
+      "hyprutils",
+      "hyprwayland-scanner"
+    ],
+    "hyprsysteminfo": [
+      "glaze",
+      "hyprtoolkit",
+      "hyprutils"
+    ],
+    "hyprtoolkit": [
+      "aquamarine",
+      "hyprgraphics",
+      "hyprlang",
+      "hyprutils",
+      "hyprwayland-scanner"
+    ],
+    "hyprutils": [],
+    "hyprwayland-scanner": [],
+    "hyprwire": [
+      "hyprutils"
+    ],
+    "uwsm": [],
+    "xdg-desktop-portal-hyprland": [
+      "hyprland-protocols",
+      "hyprlang",
+      "hyprutils",
+      "hyprwayland-scanner"
+    ]
+  },
+  "schema": 1
+}

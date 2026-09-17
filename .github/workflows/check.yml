@@ -1,0 +1,96 @@
+name: Check packaging tooling
+
+on:
+  push:
+    branches: ['**']
+    paths:
+      - '**/*.spec'
+      - '**/*.patch'
+      - '**/*.diff'
+      - '**/macros.*'
+      - 'scripts/**'
+      - 'build-plan.json'
+      - 'package-graph.json'
+      - 'hyprland-git/update.py'
+      - 'tests/**'
+      - '.copr/**'
+      - '.github/workflows/**'
+  pull_request:
+    paths:
+      - '**/*.spec'
+      - '**/*.patch'
+      - '**/*.diff'
+      - '**/macros.*'
+      - 'scripts/**'
+      - 'build-plan.json'
+      - 'package-graph.json'
+      - 'hyprland-git/update.py'
+      - 'tests/**'
+      - '.copr/**'
+      - '.github/workflows/**'
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  check:
+    runs-on: ubuntu-latest
+    container:
+      image: registry.fedoraproject.org/fedora-minimal:44
+    defaults:
+      run:
+        shell: bash
+
+    steps:
+      - name: Install validation tools
+        run: |
+          dnf -y install --nodocs --setopt=install_weak_deps=0 \
+            git-core rpm-build python3 python3-rpm redhat-rpm-config \
+            cmake-rpm-macros meson \
+            python-rpm-macros python3-rpm-macros systemd-rpm-macros
+
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+          persist-credentials: false
+
+      - name: Install regression test tools
+        run: |
+          dnf -y install --nodocs --setopt=install_weak_deps=0 \
+            cmake gcc-c++ patch pkgconf-pkg-config
+
+      - name: Run regression tests
+        run: python3 -B -m unittest discover -s tests -v
+
+      - name: Validate prepared build plan
+        run: python3 -B scripts/rebuild.py check
+
+      - name: Check dependency graph and release bumps
+        env:
+          BASE_REF: ${{ github.event.pull_request.base.sha || github.event.before || github.sha }}
+        run: |
+          if [[ "$BASE_REF" =~ ^0+$ ]]; then
+            BASE_REF=$(git merge-base HEAD origin/master)
+          fi
+          python3 -B scripts/rebuild.py check --base "$BASE_REF" \
+            --target fedora-44-x86_64
+
+      - name: Validate shell and expanded RPM specs
+        run: |
+          python3 -B - <<'PY'
+          import runpy
+          import subprocess
+          from pathlib import Path
+
+          updater = runpy.run_path("hyprland-git/update.py")
+          for path in sorted(Path(".").glob("*/*.spec")):
+              expanded = subprocess.run(
+                  ["rpmspec", "-P", str(path)],
+                  check=True,
+                  stdout=subprocess.PIPE,
+                  text=True,
+              ).stdout
+              updater["validate_shell_scriptlets"](path, expanded)
+              print(f"Validated {path}", flush=True)
+          PY

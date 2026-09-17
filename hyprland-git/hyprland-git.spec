@@ -20,7 +20,7 @@
 
 Name:           hyprland-git
 Version:        %{upstream_version}^%{snapshot}.git%{hyprland_shortcommit}
-Release:        %autorelease
+Release:        %autorelease -b2
 Summary:        Dynamic tiling Wayland compositor that doesn't sacrifice on its looks
 
 # Hyprland: BSD-3-Clause
@@ -36,6 +36,8 @@ Source0:        %{url}/archive/%{hyprland_commit}/%{name}-%{hyprland_shortcommit
 Source1:        https://github.com/hyprwm/hyprland-protocols/archive/%{protocols_commit}/protocols-%{protocols_shortcommit}.tar.gz
 Source2:        https://github.com/canihavesomecoffee/udis86/archive/%{udis86_commit}/udis86-%{udis86_shortcommit}.tar.gz
 Source3:        macros.hyprland
+Patch0:         escape-version-metadata.patch
+Patch1:         lua54-hyprpm.patch
 
 # Build tools
 BuildRequires:  cmake >= 3.30
@@ -45,11 +47,11 @@ BuildRequires:  ninja-build
 BuildRequires:  python3
 
 # Hypr ecosystem
-BuildRequires:  pkgconfig(aquamarine) >= 0.9.3
+BuildRequires:  pkgconfig(aquamarine) >= 0.15.0
 BuildRequires:  pkgconfig(hyprcursor) >= 0.1.7
 BuildRequires:  pkgconfig(hyprgraphics) >= 0.5.1
 BuildRequires:  pkgconfig(hyprlang) >= 0.6.7
-BuildRequires:  pkgconfig(hyprutils) >= 0.13.1
+BuildRequires:  pkgconfig(hyprutils) >= 0.14.0
 BuildRequires:  pkgconfig(hyprwayland-scanner) >= 0.3.10
 BuildRequires:  pkgconfig(hyprwire)
 
@@ -100,11 +102,11 @@ BuildRequires:  pkgconfig(lua) >= 5.5
 # canihavesomecoffee fork bundled by Hyprland.
 Provides:       bundled(udis86) = 1.7.2^1.%{udis86_shortcommit}
 
-Requires:       aquamarine%{?_isa} >= 0.9.3
+Requires:       aquamarine%{?_isa} >= 0.15.0
 Requires:       hyprcursor%{?_isa} >= 0.1.7
 Requires:       hyprgraphics%{?_isa} >= 0.5.1
 Requires:       hyprlang%{?_isa} >= 0.6.7
-Requires:       hyprutils%{?_isa} >= 0.13.1
+Requires:       hyprutils%{?_isa} >= 0.14.0
 Requires:       xorg-x11-server-Xwayland%{?_isa}
 
 # Used by the default configuration.
@@ -146,6 +148,7 @@ building software and plugins against %{name}.
 
 %prep
 %autosetup -n Hyprland-%{hyprland_commit} -N
+%patch -P 0 -p1
 
 # Replace the empty Git submodule directories with the exact pinned sources.
 rm -rf subprojects/hyprland-protocols subprojects/udis86
@@ -169,6 +172,7 @@ grep -Fxq 'set(hyprland_protocols_dep_FOUND FALSE)' CMakeLists.txt
 # Temporary compatibility for Fedora releases that still provide Lua 5.4
 # Drop this branch once all supported Fedora releases provide Lua 5.5
 %if %{lua54_compat}
+%patch -P 1 -p1
 sed -Ei \
     's|^pkg_search_module\(LUA .*$|pkg_search_module(LUA REQUIRED IMPORTED_TARGET GLOBAL lua)|' \
     CMakeLists.txt
@@ -186,7 +190,7 @@ cp -p %{SOURCE3} macros.hyprland
 sed -i 's|@@HYPRLAND_VERSION@@|%{version}|g' macros.hyprland
 
 %build
-# The updater stores the normalized commit title as Base64; decode it only after macro expansion.
+# Decode after RPM expansion; the CMake patch escapes the resulting C++ string.
 export GIT_COMMIT_HASH=%{shescape:%{hyprland_commit}}
 export GIT_BRANCH=%{shescape:main}
 export GIT_COMMIT_DATE=%{shescape:%{hyprland_commit_date}}

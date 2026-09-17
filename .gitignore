@@ -1,3 +1,7 @@
+.secrets
 *.tar.*
 *.rpm
 results_*
+__pycache__/
+*.py[cod]
+.cache/upstream-versions.json

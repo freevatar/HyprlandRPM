@@ -5,26 +5,38 @@ on:
   schedule:
     - cron: '45 */6 * * *'
 
+concurrency:
+  group: hyprland-rpm-builds
+  cancel-in-progress: false
+
 jobs:
   main:
     runs-on: ubuntu-latest
     permissions:
       contents: write
     container:
-      image: 'registry.fedoraproject.org/fedora-minimal:43'
+      image: registry.fedoraproject.org/fedora-minimal:44
+    defaults:
+      run:
+        shell: bash
 
     steps:
       - name: Prepare
         run: |
           dnf -y install --nodocs --setopt=install_weak_deps=0 \
-            git-core rpm-build curl perl-interpreter jq rpmdevtools copr-cli parallel python3
+            git-core rpm-build rpmdevtools python3 python3-rpm \
+            redhat-rpm-config cmake-rpm-macros meson \
+            python-rpm-macros python3-rpm-macros systemd-rpm-macros
 
       - uses: actions/checkout@v4
+        with:
+          ref: master
+          fetch-depth: 0
 
-      - name: Run updaters
+      - name: Update specs and dependent releases
+        id: update
         env:
-          COPR_WEBHOOK_ID: ${{ secrets.COPR_WEBHOOK_ID }}
-          COPR_WEBHOOK_TOKEN: ${{ secrets.COPR_WEBHOOK_TOKEN }}
+          GITHUB_TOKEN: ${{ github.token }}
         run: |
           set -euo pipefail
 
@@ -32,10 +44,32 @@ jobs:
           git config --local user.name "github-actions[bot]"
           git config --local user.email "41898282+github-actions[bot]@users.noreply.github.com"
 
-          while IFS= read -r -d '' dir; do
-            if [[ -f "$dir/update.py" ]]; then
-              (cd "$dir" && python3 update.py)
-            elif [[ -f "$dir/update.sh" ]]; then
-              (cd "$dir" && bash update.sh)
-            fi
-          done < <(find . -type d -print0)
+          base=$(git rev-parse HEAD)
+          python3 -B scripts/rebuild.py check
+          python3 -B hyprland-git/update.py
+          python3 -B scripts/rebuild.py apply --base "$base"
+          python3 -B scripts/rebuild.py check --base "$base"
+          git diff --check
+
+          mapfile -d '' -t changed_specs < <(git diff --name-only -z -- '*.spec')
+          if ((${#changed_specs[@]})); then
+            git add -- "${changed_specs[@]}"
+          fi
+          git add -- build-plan.json
+          if ! git diff --cached --quiet; then
+            git commit -m "Update package revisions"
+            git push
+          fi
+          echo "commit=$(git rev-parse HEAD)" >> "$GITHUB_OUTPUT"
+
+      - name: Build or resume COPR packages
+        env:
+          COPR_LOGIN: ${{ secrets.COPR_LOGIN }}
+          COPR_TOKEN: ${{ secrets.COPR_TOKEN }}
+          COPR_OWNER: ${{ vars.COPR_OWNER || 'giperborey' }}
+          COPR_PROJECT: ${{ vars.COPR_PROJECT || 'Hyprland' }}
+          SOURCE_COMMIT: ${{ steps.update.outputs.commit }}
+        run: |
+          python3 -B scripts/rebuild.py build \
+            --owner "$COPR_OWNER" --project "$COPR_PROJECT" \
+            --repo "$GITHUB_SERVER_URL/$GITHUB_REPOSITORY" --commit "$SOURCE_COMMIT"

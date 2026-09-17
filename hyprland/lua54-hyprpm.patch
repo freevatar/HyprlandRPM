@@ -1,0 +1,17 @@
+--- a/hyprpm/src/core/PluginManager.cpp
++++ b/hyprpm/src/core/PluginManager.cpp
+@@ -585,8 +585,12 @@
+         progress.printMessageAbove(verboseString("setting PREFIX for cmake to {}", DataState::getHeadersPath()));
+ 
+     const auto CONFIGURE_CMD =
+-        nixDevelopIfNeeded(std::format("cd {} && cmake --no-warn-unused-cli -DCMAKE_BUILD_TYPE:STRING=Release -DCMAKE_INSTALL_PREFIX:STRING=\"{}\" -S . -B ./build", WORKINGDIR,
+-                                       DataState::getHeadersPath()),
++        nixDevelopIfNeeded(std::format("cd {} && "
++                                       "if ! sed -Ei 's|^pkg_search_module\\(LUA .*$|pkg_search_module(LUA REQUIRED IMPORTED_TARGET GLOBAL lua)|' CMakeLists.txt || "
++                                       "! grep -Fxq 'pkg_search_module(LUA REQUIRED IMPORTED_TARGET GLOBAL lua)' CMakeLists.txt; then "
++                                       "printf 'CMake Error at CMakeLists.txt:\\n  Lua 5.4 compatibility patch did not match the upstream dependency check.\\n'; exit 1; fi && "
++                                       "cmake --no-warn-unused-cli -DCMAKE_BUILD_TYPE:STRING=Release -DCMAKE_INSTALL_PREFIX:STRING=\"{}\" -S . -B ./build",
++                                       WORKINGDIR, DataState::getHeadersPath()),
+                            HLVER);
+ 
+     if (!CONFIGURE_CMD) {

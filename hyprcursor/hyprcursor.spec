@@ -1,6 +1,6 @@
 Name:           hyprcursor
 Version:        0.1.13
-Release:        %autorelease -b6
+Release:        %autorelease -b7
 Summary:        The hyprland cursor format, library and utilities
 
 License:        BSD-3-Clause
@@ -24,12 +24,16 @@ BuildRequires:  pkgconfig(tomlplusplus)
 %package        devel
 Summary:        Development files for %{name}
 Requires:       %{name}%{?_isa} = %{version}-%{release}
+Requires:       pkgconfig(cairo)
 
 %description    devel
 Development files for %{name}.
 
 %prep
 %autosetup -p1
+
+# shared.h exposes cairo_surface_t through the public C and C++ APIs.
+sed -i '/^Version:/a Requires: cairo' hyprcursor.pc.in
 
 %build
 %cmake -DCMAKE_BUILD_TYPE=Release

@@ -1,0 +1,66 @@
+name: Build RPMs
+
+on:
+  push:
+    branches: [master]
+    paths:
+      - '**/*.spec'
+      - '**/*.patch'
+      - '**/*.diff'
+      - '**/macros.*'
+      - 'scripts/**'
+      - 'build-plan.json'
+      - 'package-graph.json'
+      - 'hyprland-git/update.py'
+      - '.copr/**'
+      - '.github/workflows/build.yml'
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: hyprland-rpm-builds
+  cancel-in-progress: false
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    container:
+      image: registry.fedoraproject.org/fedora-minimal:44
+    defaults:
+      run:
+        shell: bash
+
+    steps:
+      - name: Install build planning tools
+        run: |
+          dnf -y install --nodocs --setopt=install_weak_deps=0 \
+            git-core rpm-build python3 python3-rpm \
+            redhat-rpm-config cmake-rpm-macros meson \
+            python-rpm-macros python3-rpm-macros systemd-rpm-macros
+
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+          persist-credentials: false
+
+      - name: Check dependency graph and release bumps
+        env:
+          PUSH_BASE: ${{ github.event.before }}
+        run: |
+          python3 -B scripts/rebuild.py check
+          if [[ -n "$PUSH_BASE" && ! "$PUSH_BASE" =~ ^0+$ ]]; then
+            python3 -B scripts/rebuild.py check --base "$PUSH_BASE"
+          fi
+
+      - name: Build or resume COPR packages
+        env:
+          COPR_LOGIN: ${{ secrets.COPR_LOGIN }}
+          COPR_TOKEN: ${{ secrets.COPR_TOKEN }}
+          COPR_OWNER: ${{ vars.COPR_OWNER || 'giperborey' }}
+          COPR_PROJECT: ${{ vars.COPR_PROJECT || 'Hyprland' }}
+        run: |
+          python3 -B scripts/rebuild.py build \
+            --owner "$COPR_OWNER" --project "$COPR_PROJECT" \
+            --repo "$GITHUB_SERVER_URL/$GITHUB_REPOSITORY" --commit "$(git rev-parse HEAD)"
