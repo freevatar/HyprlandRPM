@@ -12,10 +12,12 @@ import json
 import os
 from pathlib import Path
 import re
+import shutil
 import subprocess
 import sys
 import tarfile
 import tempfile
+import textwrap
 
 from package_graph import (
     DEFAULT_TARGETS, GRAPH_FILE, Graph, GraphError, Package, build_graph,
@@ -129,27 +131,86 @@ class Plan:
     originals: dict[Path, bytes]
     input_fingerprint: str
     base_prepared: bool
+    previous: dict[str, Package]
+    base_record_rewritten: bool
 
     def show(self) -> None:
-        print(f"Base: {self.base}")
+        width = shutil.get_terminal_size(fallback=(120, 24)).columns
+        color = sys.stdout.isatty() and "NO_COLOR" not in os.environ and os.environ.get("TERM") != "dumb"
+
+        def style(value: str, code: str) -> str:
+            return f"\033[{code}m{value}\033[0m" if color else value
+
+        def wrapped(value: str, prefix: str = "", continuation: str | None = None) -> str:
+            return textwrap.fill(value, width=width, initial_indent=prefix,
+                                 subsequent_indent=prefix if continuation is None else continuation,
+                                 break_long_words=False, break_on_hyphens=False)
+
+        print(style(f"Base: {self.base}", "2"))
         if not self.affected:
             print("No packaging changes.")
             return
+        count = len(self.affected)
+        changed = len(self.changed & self.affected)
+        print(style(f"Build plan: {count} packages", "1"))
+        print(wrapped(f"{changed} edited, {count - changed} dependent rebuilds, "
+                      f"{len(self.updates)} release bumps"))
+        print()
         packages = {name: package for graph in self.graphs for name, package in graph.packages.items()}
-        print(f"{'Package':32} {'Version-release':28} {'Action':16} Reason")
+        rows = []
         for name in sorted(self.affected):
             package = packages[name]
-            action = "bump release" if package.path in self.updates else "version/release set"
-            version_release = package.version_release
+            old = self.previous.get(name)
+            release = package.release
             if package.path in self.updates:
-                next_release = RELEASE.search(self.updates[package.path])[2].decode()
-                version_release += f" -> {package.version}-{next_release}"
+                release = RELEASE.search(self.updates[package.path])[2].decode()
+            if old is None:
+                change, change_color = "new package", "32"
+            elif old.epoch != package.epoch:
+                change = f"{old.evr} -> {package.epoch}:{package.version}-{release}"
+                change_color = "32"
+            elif old.version != package.version:
+                change, change_color = f"{old.version} -> {package.version}", "32"
+            elif old.release != release:
+                change, change_color = f"release {old.release} -> {release}", "33"
+            else:
+                change, change_color = "-", "2"
             reason = "packaging changed" if name in self.changed else "needs " + ", ".join(sorted(self.reasons[name]))
-            print(f"{name:32} {version_release:28} {action:16} {reason}")
+            rows.append((name, package.version, change, reason, change_color))
+
+        headings = ("Package", "Version", "Change", "Reason")
+        widths = [max(len(headings[index]), *(len(row[index]) for row in rows)) for index in range(3)]
+        reason_column = sum(widths) + 6
+        if width - reason_column >= 24:
+            print(style("  ".join(heading.ljust(size) for heading, size in zip(headings, widths)) + "  Reason", "1"))
+            print(style("  ".join("-" * size for size in widths) + "  " + "-" * (width - reason_column), "2"))
+            for name, version, change, reason, change_color in rows:
+                columns = [name.ljust(widths[0]), version.ljust(widths[1]), change.ljust(widths[2])]
+                if name in self.changed:
+                    columns = [style(value, "32") for value in columns]
+                else:
+                    columns[2] = style(columns[2], change_color)
+                reasons = textwrap.wrap(reason, width=width - reason_column,
+                                        break_long_words=False, break_on_hyphens=False)
+                print("  ".join(columns) + "  " + reasons[0])
+                for continuation in reasons[1:]:
+                    print(" " * reason_column + continuation)
+        else:
+            for name, version, change, reason, change_color in rows:
+                edited = name in self.changed
+                print(style(name, "1;32" if edited else "1"))
+                version_line = wrapped(f"Version: {version}", "  ")
+                print(style(version_line, "32") if edited else version_line)
+                print(style(wrapped(f"Change: {change}", "  "), "32" if edited else change_color))
+                print(style(wrapped(reason, "  "), "2"))
+                print()
+
         for graph in self.graphs:
-            print(f"\n{graph.target} build order (independent packages can start sooner):")
+            print(style(f"\nBuild order: {graph.target}", "1"))
+            print(style(wrapped("Packages within a stage can build in parallel."), "2"))
             for index, stage in enumerate(graph.stages(self.affected & graph.packages.keys()), 1):
-                print(f"  {index}: {', '.join(stage)}")
+                prefix = f"  {index}. "
+                print(wrapped(", ".join(stage), prefix, " " * len(prefix)))
 
     def apply(self) -> None:
         # Certify the saved edges before recording a prepared batch. Builds can
@@ -185,6 +246,9 @@ class Plan:
             if not self.base_prepared:
                 raise PlanError("the chosen base contains unprepared changes or a stale plan; "
                                 "use --base from before your package edits")
+            if self.base_record_rewritten and not self.affected:
+                raise PlanError("the chosen base has a stale plan referencing rewritten history; "
+                                "use --base from before the amended or squashed changes")
             updates[MANIFEST] = (json.dumps({
                 "schema": 1, "base": self.base,
                 "targets": [graph.target for graph in self.graphs],
@@ -227,13 +291,20 @@ def plan(root: Path, base: str = "HEAD", targets: tuple[str, ...] = DEFAULT_TARG
         # Validate the record at the comparison base, not the current record:
         # the latter may describe a later batch or history before a squash.
         base_prepared = True
+        base_record_rewritten = False
         if (baseline_root / MANIFEST).exists():
             try:
                 record = read_record(baseline_root)
-                git(root, "merge-base", "--is-ancestor", record["base"], revision)
                 recorded_graphs = (previous_graphs if tuple(record["targets"]) == targets else
                                    [historical_graph(baseline_root, target) for target in record["targets"]])
                 base_prepared = fingerprint(baseline_root, recorded_graphs) == record["inputs_sha256"]
+                # Amending history does not invalidate unchanged package inputs
+                # as the baseline of a new batch. An empty batch must still use
+                # an earlier base to preserve the previous preparation.
+                try:
+                    git(root, "merge-base", "--is-ancestor", record["base"], revision)
+                except PlanError:
+                    base_record_rewritten = True
             except PlanError:
                 base_prepared = False
         previous = {name: package for graph in previous_graphs for name, package in graph.packages.items()}
@@ -291,7 +362,7 @@ def plan(root: Path, base: str = "HEAD", targets: tuple[str, ...] = DEFAULT_TARG
             originals[package.path] = current
             updates[package.path] = bumped_release((baseline_root / old.path).read_bytes(), current, package.path)
         return Plan(root, revision, graphs, changed, affected, reasons, updates, originals,
-                    fingerprint(root, graphs), base_prepared)
+                    fingerprint(root, graphs), base_prepared, previous, base_record_rewritten)
 
 
 def read_record(root: Path) -> dict:

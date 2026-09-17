@@ -45,12 +45,18 @@ jobs:
           fetch-depth: 0
           persist-credentials: false
 
+      - name: Trust the checked-out workspace
+        run: git config --global --add safe.directory "$GITHUB_WORKSPACE"
+
       - name: Check dependency graph and release bumps
         env:
           PUSH_BASE: ${{ github.event.before }}
         run: |
           python3 -B scripts/rebuild.py check
           if [[ -n "$PUSH_BASE" && ! "$PUSH_BASE" =~ ^0+$ ]]; then
+            if ! git cat-file -e "$PUSH_BASE^{commit}" 2>/dev/null; then
+              git fetch --no-tags origin "$PUSH_BASE"
+            fi
             python3 -B scripts/rebuild.py check --base "$PUSH_BASE"
           fi
 

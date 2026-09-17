@@ -55,6 +55,9 @@ jobs:
           fetch-depth: 0
           persist-credentials: false
 
+      - name: Trust the checked-out workspace
+        run: git config --global --add safe.directory "$GITHUB_WORKSPACE"
+
       - name: Install regression test tools
         run: |
           dnf -y install --nodocs --setopt=install_weak_deps=0 \
@@ -72,6 +75,9 @@ jobs:
         run: |
           if [[ "$BASE_REF" =~ ^0+$ ]]; then
             BASE_REF=$(git merge-base HEAD origin/master)
+          fi
+          if ! git cat-file -e "$BASE_REF^{commit}" 2>/dev/null; then
+            git fetch --no-tags origin "$BASE_REF"
           fi
           python3 -B scripts/rebuild.py check --base "$BASE_REF" \
             --target fedora-44-x86_64

@@ -1,5 +1,5 @@
 Name:           aquamarine
-Version:        0.15.0
+Version:        0.15.1
 Release:        %autorelease
 Summary:        Lightweight Linux rendering backend library
 

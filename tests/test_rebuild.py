@@ -1,6 +1,8 @@
 """Exercise planning against real Git history and RPM spec queries."""
 
 from pathlib import Path
+from contextlib import redirect_stdout
+import io
 import json
 import shutil
 import subprocess
@@ -60,6 +62,52 @@ class PlannerTests(unittest.TestCase):
 
     def bump_version(self, path, version="2.0"):
         path.write_text(path.read_text().replace("Version: 1.0", f"Version: {version}"))
+
+    def show(self, result):
+        output = io.StringIO()
+        with redirect_stdout(output):
+            result.show()
+        return output.getvalue()
+
+    def test_display_preserves_version_and_release_changes_after_apply(self):
+        library = self.spec("library")
+        self.spec("app", requires=("pkgconfig(library)",))
+        self.commit()
+        self.bump_version(library)
+        result = self.prepare()
+        before = self.show(result)
+        self.assertIn("1.0 -> 2.0", before)
+        self.assertIn("release 1 -> 2", before)
+        self.assertNotIn("unchanged", before)
+        result.apply()
+        prepared = plan(self.root, result.base, (TARGET,))
+        self.assertFalse(prepared.updates)
+        after = self.show(prepared)
+        self.assertIn("1.0 -> 2.0", after)
+        self.assertIn("release 1 -> 2", after)
+        self.assertNotIn("unchanged", after)
+
+    def test_display_uses_selected_base_for_version_transition(self):
+        library = self.spec("library")
+        self.commit()
+        old_base = self.git("rev-parse", "HEAD").strip()
+        self.bump_version(library)
+        self.commit()
+        library.write_text(library.read_text().replace("Version: 2.0", "Version: 3.0"))
+        self.assertIn("2.0 -> 3.0", self.show(self.prepare()))
+        output = self.show(plan(self.root, old_base, (TARGET,)))
+        self.assertIn("1.0 -> 3.0", output)
+        self.assertNotIn("2.0 -> 3.0", output)
+
+    def test_display_identifies_new_package_without_inventing_old_version(self):
+        self.spec("old")
+        self.commit()
+        self.spec("new", version="2.0")
+        self.refresh_graph()
+        output = self.show(self.prepare())
+        self.assertIn("new package", output)
+        self.assertNotIn("1.0 -> 2.0", output)
+        self.assertNotIn("unchanged", output)
 
     def test_combines_roots_and_bumps_transitive_consumers_once(self):
         first = self.spec("first")
@@ -345,6 +393,68 @@ class PlannerTests(unittest.TestCase):
         result.apply()
         validate_preparation(self.root)
         self.assertIn("Release: %autorelease -b2", (self.root / "app/app.spec").read_text())
+
+    def test_new_batch_uses_prepared_inputs_after_base_history_is_rewritten(self):
+        library = self.spec("library")
+        app = self.spec("app", requires=("pkgconfig(library)",))
+        self.commit()
+        published = self.git("rev-parse", "HEAD").strip()
+        (self.root / "README.md").write_text("tooling changes\n")
+        self.commit()
+        recorded_base = self.git("rev-parse", "HEAD").strip()
+        self.bump_version(library)
+        self.prepare().apply()
+        self.commit()
+        self.git("reset", "--soft", published)
+        self.git("commit", "-qm", "squashed prepared update")
+        new_base = self.git("rev-parse", "HEAD").strip()
+
+        for prune_old_history in (False, True):
+            with self.subTest(missing_recorded_base=prune_old_history):
+                self.git("reset", "--hard", new_base)
+                if prune_old_history:
+                    self.git("reflog", "expire", "--expire=now", "--all")
+                    self.git("gc", "--prune=now")
+                    with self.assertRaises(subprocess.CalledProcessError):
+                        self.git("cat-file", "-e", recorded_base)
+                else:
+                    self.git("cat-file", "-e", recorded_base)
+                with self.assertRaisesRegex(PlanError, "missing or rewritten base"):
+                    validate_preparation(self.root)
+                library.write_text(library.read_text().replace("Version: 2.0", "Version: 3.0"))
+                result = self.prepare()
+                self.assertEqual(result.base, new_base)
+                result.apply()
+                self.assertIn("Release: %autorelease -b3", app.read_text())
+                manifest = self.root / "build-plan.json"
+                self.assertEqual(json.loads(manifest.read_text())["base"], new_base)
+                self.assertFalse(validate_preparation(self.root).updates)
+                prepared = {path: path.read_bytes() for path in (library, app, manifest)}
+                repeated = self.prepare()
+                self.assertFalse(repeated.updates)
+                repeated.apply()
+                self.assertEqual({path: path.read_bytes() for path in prepared}, prepared)
+
+    def test_new_batch_rejects_unprepared_inputs_in_rewritten_base_without_writes(self):
+        library = self.spec("library")
+        app = self.spec("app", requires=("pkgconfig(library)",))
+        self.commit()
+        published = self.git("rev-parse", "HEAD").strip()
+        (self.root / "README.md").write_text("tooling changes\n")
+        self.commit()
+        self.bump_version(library)
+        self.prepare().apply()
+        self.commit()
+        library.write_text(library.read_text().replace("Summary: Test", "Summary: Unprepared"))
+        self.git("add", str(library))
+        self.git("reset", "--soft", published)
+        self.git("commit", "-qm", "squashed update with unprepared packaging")
+        library.write_text(library.read_text().replace("Version: 2.0", "Version: 3.0"))
+        paths = (library, app, self.root / "build-plan.json", self.root / GRAPH_FILE)
+        originals = {path: path.read_bytes() for path in paths}
+        with self.assertRaisesRegex(PlanError, "unprepared changes"):
+            self.prepare().apply()
+        self.assertEqual({path: path.read_bytes() for path in paths}, originals)
 
     def test_atomic_write_failure_restores_every_changed_spec(self):
         first = self.spec("first")
