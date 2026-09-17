@@ -1,16 +1,16 @@
 %global upstream_version 0.56.2
-%global snapshot 57
+%global snapshot 58
 
 %global lua54_compat 0
 %if 0%{?fedora} && 0%{?fedora} < 45
 %global lua54_compat 1
 %endif
 
-%global hyprland_commit 92b82c0c1e4168d93903ec42a2276843bbd84821
+%global hyprland_commit d50ca8950ac8753c54e50b6d44f4461df14bfabb
 %global hyprland_shortcommit %(c=%{hyprland_commit}; echo ${c:0:7})
-%global hyprland_commits 7818
-%global hyprland_commit_date Tue Sep 15 14:49:48 2026
-%global hyprland_commit_message_b64 ZnVsbHNjcmVlbjogZml4IGZsb2F0aW5nIHdpbmRvdyBmb2N1cyBsb3NzIG9uIHdvcmtzcGFjZSBjaGFuZ2Ugd2hlbiBjb3ZlcmluZyBGUyB3aW5kb3cgcHJlc2VudCAoIzE2MTY4KQ==
+%global hyprland_commits 7819
+%global hyprland_commit_date Thu Sep 17 09:50:23 2026
+%global hyprland_commit_message_b64 aXBjOiBjbGVhbiB1cCB3b3Jrc3BhY2UgZGF0YSAoIzE2MjY5KQ==
 
 %global protocols_commit bd153e76f751f150a09328dbdeb5e4fab9d23622
 %global protocols_shortcommit %(c=%{protocols_commit}; echo ${c:0:7})
