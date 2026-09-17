@@ -17,6 +17,8 @@ from urllib.error import HTTPError, URLError
 from urllib.parse import urlencode, urlsplit
 from urllib.request import Request, urlopen
 
+from package_graph import split_evr
+
 if TYPE_CHECKING:
     from package_graph import Graph, Package
 
@@ -158,7 +160,11 @@ class Copr:
     @staticmethod
     def matches(record: dict, package: Package) -> bool:
         source = record.get("source_package") or {}
-        return source.get("name") == package.name and source.get("version") == package.version_release
+        version = source.get("version")
+        # COPR includes a nonzero epoch in its source version; an omitted
+        # epoch and an explicit zero both identify the default RPM epoch.
+        return (source.get("name") == package.name and isinstance(version, str)
+                and split_evr(version) == (package.epoch, package.version, package.release))
 
     def wait(self, record: dict) -> dict:
         build_id = self.build_id(record)

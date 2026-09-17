@@ -155,15 +155,18 @@ class BuildTests(unittest.TestCase):
         return subprocess.run(["git", "-C", str(self.root), *args], check=True,
                               text=True, capture_output=True).stdout.strip()
 
-    def graph(self, dependencies, target=TARGET, *, release="2"):
+    def graph(self, dependencies, target=TARGET, *, release="2", epoch="0"):
         packages = {}
         for name in dependencies:
             path = Path(name) / f"{name}.spec"
             (self.root / path).parent.mkdir(exist_ok=True)
             if not (self.root / path).exists():
-                (self.root / path).write_text(f"Name: {name}\nVersion: 1.0\nRelease: {release}\n")
-            packages[name] = Package(name, path, release=release)
-            self.service.versions[name] = f"1.0-{release}"
+                (self.root / path).write_text(
+                    f"Name: {name}\nEpoch: {epoch}\nVersion: 1.0\nRelease: {release}\n"
+                )
+            packages[name] = Package(name, path, release=release, epoch=epoch)
+            prefix = f"{epoch}:" if epoch != "0" else ""
+            self.service.versions[name] = f"{prefix}1.0-{release}"
         self.git("add", ".")
         self.git("commit", "-qm", "Packages", "--allow-empty")
         return Graph(target, packages, dependencies)
@@ -194,6 +197,26 @@ class BuildTests(unittest.TestCase):
         runner.build(self.root, [graph])
         self.assertEqual(len(self.service.submissions), 2)
 
+    def test_nonzero_epoch_build_succeeds_and_is_reused(self):
+        graph = self.graph({"app": set()}, epoch="1")
+        runner.build(self.root, [graph])
+        runner.build(self.root, [graph])
+        self.assertEqual(len(self.service.submissions), 1)
+        self.assertEqual(self.service.records[-1]["source_package"]["version"], "1:1.0-2")
+
+    def test_explicit_zero_epoch_success_is_reused(self):
+        graph = self.graph({"app": set()})
+        self.service.add("app", version="0:1.0-2")
+        runner.build(self.root, [graph])
+        self.assertFalse(self.service.submissions)
+
+    def test_success_from_another_epoch_is_not_reused(self):
+        graph = self.graph({"app": set()}, epoch="1")
+        for version in ("1.0-2", "0:1.0-2", "2:1.0-2"):
+            self.service.add("app", version=version)
+        runner.build(self.root, [graph])
+        self.assertEqual(len(self.service.submissions), 1)
+
     def test_newer_failure_is_not_hidden_by_older_success(self):
         graph = self.graph({"app": set()})
         self.service.add("app")
@@ -208,6 +231,21 @@ class BuildTests(unittest.TestCase):
             runner.build(self.root, [graph], jobs=2)
         names = {data["subdirectory"] for data in self.service.submissions}
         self.assertEqual(names, {"library", "other"})
+
+    def test_rerun_retries_failed_prerequisite_then_builds_blocked_consumers(self):
+        graph = self.graph({"library": set(), "app": {"library"}, "other": set()})
+        self.service.outcomes[("library", TARGET)] = "failed"
+        with self.assertRaisesRegex(runner.BuildError, "blocked by"):
+            runner.build(self.root, [graph])
+        self.service.outcomes.clear()
+        self.service.events.clear()
+        runner.build(self.root, [graph])
+        names = [data["subdirectory"] for data in self.service.submissions]
+        self.assertEqual(names.count("library"), 2)
+        self.assertEqual(names.count("other"), 1)
+        self.assertEqual(names.count("app"), 1)
+        self.assertLess(self.service.events.index(("finish", "library", TARGET)),
+                        self.service.events.index(("submit", "app", TARGET)))
 
     def test_source_build_without_name_is_resumed_from_scm_identity(self):
         graph = self.graph({"app": set()})

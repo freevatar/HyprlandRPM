@@ -20,7 +20,7 @@
 
 Name:           hyprland-git
 Version:        %{upstream_version}^%{snapshot}.git%{hyprland_shortcommit}
-Release:        %autorelease -b3
+Release:        %autorelease -b4
 Summary:        Dynamic tiling Wayland compositor that doesn't sacrifice on its looks
 
 # Hyprland: BSD-3-Clause
@@ -45,6 +45,7 @@ BuildRequires:  gcc-c++
 BuildRequires:  glaze-static
 BuildRequires:  ninja-build
 BuildRequires:  python3
+BuildRequires:  systemd-rpm-macros
 
 # Hypr ecosystem
 BuildRequires:  pkgconfig(aquamarine) >= 0.15.0
@@ -214,6 +215,13 @@ export GIT_COMMIT_MESSAGE
 %install
 %cmake_install
 
+# Systemd user units belong in lib even when libraries are installed in lib64.
+if [ "%{_libdir}/systemd/user" != "%{_userunitdir}" ]; then
+    install -d %{buildroot}%{_userunitdir}
+    mv %{buildroot}%{_libdir}/systemd/user/hyprland-session.target \
+        %{buildroot}%{_userunitdir}/hyprland-session.target
+fi
+
 install -Dpm0644 macros.hyprland \
     %{buildroot}%{_rpmconfigdir}/macros.d/macros.hyprland
 
@@ -227,6 +235,7 @@ install -Dpm0644 macros.hyprland \
 %{_datadir}/hypr/
 %{_datadir}/wayland-sessions/hyprland.desktop
 %{_datadir}/xdg-desktop-portal/hyprland-portals.conf
+%{_userunitdir}/hyprland-session.target
 %{_mandir}/man1/Hyprland.1*
 %{_mandir}/man1/hyprctl.1*
 %{bash_completions_dir}/hypr*

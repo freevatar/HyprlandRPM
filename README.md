@@ -141,6 +141,9 @@ the committed plan, then use that exact commit and the COPR project's enabled
 targets. Rerun the command, or start the **Build RPMs** workflow manually, to
 resume after a failure. Scheduled updates and build workflows do not overlap.
 
+A failed build blocks its dependents. Other packages continue, and the workflow
+fails when they finish. Reruns reuse successful builds and retry failed ones.
+
 For coordinated library updates, enable manual repository publication in COPR
 and publish after all affected packages succeed.
 

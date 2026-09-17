@@ -1,6 +1,6 @@
 Name:           hyprpolkitagent
 Version:        0.2.0
-Release:        %autorelease
+Release:        %autorelease -b2
 Summary:        A simple polkit authentication agent for Hyprland
 
 License:        BSD-3-Clause
@@ -11,22 +11,22 @@ Source:         %{url}/archive/v%{version}/%{name}-%{version}.tar.gz
 ExcludeArch:    %{ix86}
 
 BuildRequires:  cmake
-BuildRequires:  desktop-file-utils
 BuildRequires:  gcc-c++
+BuildRequires:  pkgconf-pkg-config
 BuildRequires:  systemd-rpm-macros
 
-BuildRequires:  cmake(Qt6Quick)
-BuildRequires:  cmake(Qt6QuickControls2)
-BuildRequires:  cmake(Qt6Widgets)
-
+BuildRequires:  pkgconfig(hyprgraphics)
+BuildRequires:  pkgconfig(hyprlang)
+BuildRequires:  pkgconfig(hyprtoolkit)
 BuildRequires:  pkgconfig(hyprutils)
-BuildRequires:  pkgconfig(polkit-agent-1)
-BuildRequires:  pkgconfig(polkit-qt6-1)
+BuildRequires:  pkgconfig(libdrm)
+BuildRequires:  pkgconfig(pixman-1)
+BuildRequires:  pkgconfig(sdbus-c++) >= 2.0.0
 
-Requires:       hyprland-qt-support%{?_isa}
+Requires:       polkit
 
 %description
-A simple polkit authentication agent for Hyprland, written in QT/QML.
+A polkit authentication agent for Hyprland, built with hyprtoolkit.
 
 %prep
 %autosetup -p1
