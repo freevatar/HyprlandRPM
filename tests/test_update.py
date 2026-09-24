@@ -81,11 +81,15 @@ class UpdateTests(unittest.TestCase):
         return subprocess.run(["git", *args], check=True, capture_output=True, text=True).stdout.strip()
 
     @staticmethod
-    def release_text(version="0.56.2", sha="e" * 40):
-        return f"%global upstream_version {version}\n%global hyprland_commit {sha}\n"
+    def release_text(version="0.56.2", sha="e" * 40, release="%autorelease -b4"):
+        return (
+            f"%global upstream_version {version}\n%global hyprland_commit {sha}\n"
+            "Name: hyprland\nVersion: %{upstream_version}\n"
+            f"Release: {release}\n"
+        )
 
     @staticmethod
-    def snapshot_text(*, current):
+    def snapshot_text(*, current, release="%autorelease -b4"):
         return (
             "%global upstream_version 0.56.2\n%global snapshot 1\n"
             "%global hyprland_commit " + ("b" if current else "a") * 40 + "\n"
@@ -94,6 +98,9 @@ class UpdateTests(unittest.TestCase):
             "%global hyprland_commit_message_b64 " + updater.encode_text_base64('fix "focus" handling') + "\n"
             "%global protocols_commit " + "c" * 40 + "\n"
             "%global udis86_commit " + "d" * 40 + "\n"
+            "Name: hyprland-git\n"
+            "Version: %{upstream_version}^%{snapshot}.git%{hyprland_commit}\n"
+            f"Release: {release}\n"
         )
 
     def record_fixture(self):
@@ -120,6 +127,8 @@ class UpdateTests(unittest.TestCase):
         self.assertEqual(spec.get_global("hyprland_commit"), "b" * 40)
         self.assertEqual(spec.get_global("protocols_commit"), "c" * 40)
         self.assertEqual(spec.get_global("udis86_commit"), "d" * 40)
+        self.assertIn("Release: %autorelease\n", spec.text)
+        self.assertEqual(Path("release.spec").read_text(), self.release_text())
         self.validation.assert_called_once()
 
     def test_new_release_updates_both_specs_and_resets_snapshot_counter(self):
@@ -131,6 +140,8 @@ class UpdateTests(unittest.TestCase):
         self.assertEqual(snapshot.get_global("snapshot"), "1")
         self.assertEqual(stable.get_global("upstream_version"), "0.57.0")
         self.assertEqual(stable.get_global("hyprland_commit"), GitHubFixture.release_sha)
+        self.assertIn("Release: %autorelease\n", snapshot.text)
+        self.assertIn("Release: %autorelease\n", stable.text)
 
     def test_stable_drift_is_corrected_without_incrementing_snapshot(self):
         Path("git.spec").write_text(self.snapshot_text(current=True))
@@ -138,7 +149,8 @@ class UpdateTests(unittest.TestCase):
         self.record_fixture()
         updater.update(self.config)
         self.assertEqual(updater.SpecDocument.load(Path("git.spec")).get_global("snapshot"), "1")
-        self.assertEqual(Path("release.spec").read_text(), self.release_text())
+        self.assertEqual(Path("release.spec").read_text(), self.release_text(release="%autorelease"))
+        self.assertEqual(Path("git.spec").read_text(), self.snapshot_text(current=True))
         self.assertEqual(self.git("diff", "--name-only"), "release.spec")
 
     def test_current_versions_still_resolve_stable_tag_identity(self):
@@ -149,6 +161,7 @@ class UpdateTests(unittest.TestCase):
             updater.update(self.config)
         resolve.assert_called_once_with("0.56.2")
         self.assertEqual(updater.SpecDocument.load(Path("release.spec")).get_global("hyprland_commit"), "f" * 40)
+        self.assertIn("Release: %autorelease -b4\n", Path("release.spec").read_text())
         self.assertEqual(self.git("diff", "--name-only"), "release.spec")
 
     def test_current_metadata_leaves_worktree_unchanged(self):
@@ -156,6 +169,40 @@ class UpdateTests(unittest.TestCase):
         self.record_fixture()
         self.assertEqual(updater.update(self.config), 0)
         self.assertEqual(self.git("status", "--porcelain"), "")
+        self.validation.assert_not_called()
+
+    def test_new_snapshot_resets_supported_release_forms(self):
+        for old, new in (
+            ("%autorelease", "%autorelease"),
+            ("%autorelease -b15", "%autorelease"),
+            ("%autorelease -b 15", "%autorelease"),
+            ("15", "1"),
+            ("15%{?dist}", "1%{?dist}"),
+        ):
+            with self.subTest(release=old):
+                Path("git.spec").write_text(self.snapshot_text(current=False, release=old))
+                self.git("add", "git.spec")
+                self.git("commit", "--allow-empty", "-qm", "release fixture")
+                updater.update(self.config)
+                self.assertIn(f"Release: {new}\n", Path("git.spec").read_text())
+                self.assertEqual(Path("release.spec").read_text(), self.release_text())
+
+    def test_ambiguous_or_unsupported_release_changes_neither_spec(self):
+        for release_line, error in (
+            ("Release: %{custom_release}\n", "unsupported Release"),
+            ("Release: %autorelease -p\n", "unsupported Release"),
+            ("Release: 4\nRelease: 5\n", "exactly one Release"),
+            ("", "exactly one Release"),
+            ("%if 0%{?fedora}\nRelease: 4\n%endif\n", "conditional Release"),
+        ):
+            with self.subTest(release_line=release_line):
+                text = self.snapshot_text(current=False).replace("Release: %autorelease -b4\n", release_line)
+                Path("git.spec").write_text(text)
+                self.record_fixture()
+                with patch.object(GitHubFixture, "version", "0.57.0"):
+                    with self.assertRaisesRegex(updater.UpdateError, error):
+                        updater.update(self.config)
+                self.assertEqual(self.git("status", "--porcelain"), "")
         self.validation.assert_not_called()
 
     def test_managed_dirty_and_staged_specs_are_rejected(self):
@@ -181,8 +228,14 @@ class UpdateTests(unittest.TestCase):
         Path("unrelated.txt").write_text("staged work\n")
         self.git("add", "unrelated.txt")
         index = self.git("write-tree")
+
+        def invalid_spec(specs):
+            for spec in specs:
+                self.assertIn("Release: %autorelease\n", spec.path.read_text())
+            raise updater.UpdateError("invalid spec")
+
         with patch.object(GitHubFixture, "version", "0.57.0"):
-            with patch.object(updater, "validate_specs", side_effect=updater.UpdateError("invalid spec")):
+            with patch.object(updater, "validate_specs", side_effect=invalid_spec):
                 with self.assertRaisesRegex(updater.UpdateError, "invalid spec"):
                     updater.update(self.config)
         self.assertEqual(self.git("diff", "--name-only"), "")

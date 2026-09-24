@@ -139,6 +139,39 @@ class SpecDocument:
                 count=1,
             )
 
+    def reset_release(self) -> None:
+        """Start a new upstream version at RPM release 1."""
+        pattern = re.compile(
+            r"^(?P<prefix>[ \t]*Release[ \t]*:[ \t]*)(?P<value>[^\n]+)$",
+            flags=re.MULTILINE | re.IGNORECASE,
+        )
+        matches = list(pattern.finditer(self.text))
+        if len(matches) != 1:
+            raise UpdateError(
+                f"expected exactly one Release field in {self.path}, "
+                f"found {len(matches)}"
+            )
+        match = matches[0]
+        conditional_depth = 0
+        for line in self.text[:match.start()].splitlines():
+            if re.match(r"^\s*%if(?:n?arch|n?os)?\b", line):
+                conditional_depth += 1
+            elif re.match(r"^\s*%endif\b", line):
+                conditional_depth -= 1
+        if conditional_depth:
+            raise UpdateError(f"cannot reset a conditional Release field in {self.path}")
+
+        value = match.group("value").strip()
+        if re.fullmatch(r"%autorelease(?:[ \t]+-b[ \t]*[0-9]+)?", value):
+            replacement = "%autorelease"
+        elif number := re.fullmatch(r"[0-9]+(?P<dist>%\{\?dist\})?", value):
+            replacement = "1" + (number.group("dist") or "")
+        else:
+            raise UpdateError(f"cannot reset unsupported Release field in {self.path}: {value!r}")
+        self.text = (
+            self.text[:match.start("value")] + replacement + self.text[match.end("value"):]
+        )
+
     def write(self) -> None:
         _atomic_write(self.path, self.text.encode("utf-8"), self.mode)
 
@@ -768,12 +801,15 @@ def update(config: Config) -> int:
         "upstream_version": new_tag,
         "hyprland_commit": github.release_commit(new_tag),
     })
+    if release_version != new_tag:
+        release_spec.reset_release()
 
     if git_spec.changed:
         snapshot_text = git_spec.get_global("snapshot")
         if not snapshot_text.isdecimal():
             fail(f"invalid snapshot value: {snapshot_text!r}")
         git_spec.update_globals({"snapshot": str(int(snapshot_text) + 1)})
+        git_spec.reset_release()
 
     changed_specs = [spec for spec in managed_specs if spec.changed]
     if not changed_specs:

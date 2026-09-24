@@ -26,14 +26,15 @@ jobs:
           dnf -y install --nodocs --setopt=install_weak_deps=0 \
             git-core rpm-build rpmdevtools python3 python3-rpm \
             redhat-rpm-config cmake-rpm-macros meson \
-            python-rpm-macros python3-rpm-macros systemd-rpm-macros
+            python-rpm-macros python3-rpm-macros systemd-rpm-macros \
+            cmake gcc-c++ patch pkgconf-pkg-config
 
       - uses: actions/checkout@v4
         with:
           ref: master
           fetch-depth: 0
 
-      - name: Update specs and dependent releases
+      - name: Update, validate, and publish specs
         id: update
         env:
           GITHUB_TOKEN: ${{ github.token }}
@@ -44,23 +45,12 @@ jobs:
           git config --local user.name "github-actions[bot]"
           git config --local user.email "41898282+github-actions[bot]@users.noreply.github.com"
 
-          base=$(git rev-parse HEAD)
-          python3 -B scripts/rebuild.py check
-          python3 -B hyprland-git/update.py
-          python3 -B scripts/rebuild.py apply --base "$base"
-          python3 -B scripts/rebuild.py check --base "$base"
-          git diff --check
+          bash .github/scripts/update.sh
 
-          mapfile -d '' -t changed_specs < <(git diff --name-only -z -- '*.spec')
-          if ((${#changed_specs[@]})); then
-            git add -- "${changed_specs[@]}"
-          fi
-          git add -- build-plan.json
-          if ! git diff --cached --quiet; then
-            git commit -m "Update package revisions"
-            git push
-          fi
-          echo "commit=$(git rev-parse HEAD)" >> "$GITHUB_OUTPUT"
+      - name: Use the validated commit
+        env:
+          SOURCE_COMMIT: ${{ steps.update.outputs.commit }}
+        run: git checkout --detach "$SOURCE_COMMIT"
 
       - name: Build or resume COPR packages
         env:

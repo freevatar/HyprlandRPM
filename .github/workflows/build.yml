@@ -33,12 +33,13 @@ jobs:
         shell: bash
 
     steps:
-      - name: Install build planning tools
+      - name: Install validation and build planning tools
         run: |
           dnf -y install --nodocs --setopt=install_weak_deps=0 \
-            git-core rpm-build python3 python3-rpm \
+            git-core rpm-build rpmdevtools python3 python3-rpm \
             redhat-rpm-config cmake-rpm-macros meson \
-            python-rpm-macros python3-rpm-macros systemd-rpm-macros
+            python-rpm-macros python3-rpm-macros systemd-rpm-macros \
+            cmake gcc-c++ patch pkgconf-pkg-config
 
       - uses: actions/checkout@v4
         with:
@@ -48,17 +49,10 @@ jobs:
       - name: Trust the checked-out workspace
         run: git config --global --add safe.directory "$GITHUB_WORKSPACE"
 
-      - name: Check dependency graph and release bumps
+      - name: Validate before building
         env:
           PUSH_BASE: ${{ github.event.before }}
-        run: |
-          python3 -B scripts/rebuild.py check
-          if [[ -n "$PUSH_BASE" && ! "$PUSH_BASE" =~ ^0+$ ]]; then
-            if ! git cat-file -e "$PUSH_BASE^{commit}" 2>/dev/null; then
-              git fetch --no-tags origin "$PUSH_BASE"
-            fi
-            python3 -B scripts/rebuild.py check --base "$PUSH_BASE"
-          fi
+        run: bash scripts/check.sh "$PUSH_BASE"
 
       - name: Build or resume COPR packages
         env:

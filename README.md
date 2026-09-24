@@ -114,6 +114,9 @@ a stale graph or dependency versions that do not satisfy the specs. CI runs
 these checks too. Refresh fails if the targets have different package graphs.
 Use `graph --check` to check just the saved graph.
 
+The planner uses your local specs and does not check upstream. Dependency
+rebuilds keep the Hyprland commit already pinned in its spec.
+
 To refresh stable and snapshot Hyprland metadata, start with those specs clean:
 
 ```sh
@@ -123,7 +126,10 @@ python3 hyprland-git/update.py
 
 The first command previews and restores the changes. The second edits the specs;
 then run the planner and commit as above. The scheduled workflow does this every
-six hours, commits the changes, and runs the builds directly.
+six hours, validates and commits the changes, and runs the builds directly.
+New snapshots and stable versions start at RPM release `1`.
+If `master` changes while the updater prepares a commit, it starts over from
+the new commit and regenerates the plan, with up to three attempts.
 
 ## COPR builds
 
@@ -140,6 +146,7 @@ Run this from a clean checkout after pushing your prepared changes. Builds check
 the committed plan, then use that exact commit and the COPR project's enabled
 targets. Rerun the command, or start the **Build RPMs** workflow manually, to
 resume after a failure. Scheduled updates and build workflows do not overlap.
+Both workflows run the full validation suite before submitting COPR builds.
 
 A failed build blocks its dependents. Other packages continue, and the workflow
 fails when they finish. Reruns reuse successful builds and retry failed ones.
@@ -154,11 +161,14 @@ The tooling needs Fedora RPM tools and macros, Git, `python3-rpm`, and
 [validation workflow](.github/workflows/check.yml) lists the macro and test
 packages to install.
 
-Run tests from the repository root:
+Run the same checks as CI:
 
 ```sh
-python3 -B -m unittest discover -s tests -v
+bash scripts/check.sh
 ```
+
+Pass a Git commit as an argument to also check changes since that commit.
+To run only the tests, use `python3 -B -m unittest discover -s tests -v`.
 
 Tests use temporary Git repositories and simulated COPR responses. They do not
 submit builds. The full suite needs Fedora RPM tools and macros, Git, CMake 3.30
