@@ -1,8 +1,8 @@
 {
   "schema": 1,
-  "base": "e716c4b20d367cb34695dae68b81d01cfc0fe11f",
+  "base": "9077ca24600ae9d5363ba07d3f03074ce4b22996",
   "targets": [
     "fedora-44-x86_64"
   ],
-  "inputs_sha256": "e530b3ce90a2fd96c77075c88a35467022fbb66d5cf9348bb74b1f53fa175879"
+  "inputs_sha256": "311c24e4778f339b8f90ef7cfb837fc72f930f25ec632a8771f67c62046473d7"
 }
