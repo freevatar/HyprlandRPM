@@ -42,7 +42,10 @@ class GitHubFixture:
 
     def submodule_commit(self, path, commit):
         assert commit == self.commit
-        return {"subprojects/hyprland-protocols": "c" * 40, "subprojects/udis86": "d" * 40}[path]
+        if path == "subprojects/hyprland-protocols":
+            raise updater.UpdateError(f"fetching {path} commit failed with HTTP status 404")
+        assert path == "subprojects/udis86"
+        return "d" * 40
 
     def release_commit(self, version):
         return self.release_sha
@@ -96,7 +99,6 @@ class UpdateTests(unittest.TestCase):
             "%global hyprland_commits 20\n"
             "%global hyprland_commit_date " + updater.format_commit_date("2026-09-16T12:00:00Z") + "\n"
             "%global hyprland_commit_message_b64 " + updater.encode_text_base64('fix "focus" handling') + "\n"
-            "%global protocols_commit " + "c" * 40 + "\n"
             "%global udis86_commit " + "d" * 40 + "\n"
             "Name: hyprland-git\n"
             "Version: %{upstream_version}^%{snapshot}.git%{hyprland_commit}\n"
@@ -125,11 +127,17 @@ class UpdateTests(unittest.TestCase):
         spec = updater.SpecDocument.load(Path("git.spec"))
         self.assertEqual(spec.get_global("snapshot"), "2")
         self.assertEqual(spec.get_global("hyprland_commit"), "b" * 40)
-        self.assertEqual(spec.get_global("protocols_commit"), "c" * 40)
         self.assertEqual(spec.get_global("udis86_commit"), "d" * 40)
         self.assertIn("Release: %autorelease\n", spec.text)
         self.assertEqual(Path("release.spec").read_text(), self.release_text())
         self.validation.assert_called_once()
+
+    def test_removed_protocols_submodule_is_not_queried(self):
+        with patch.object(GitHubFixture, "submodule_commit", autospec=True,
+                          side_effect=GitHubFixture.submodule_commit) as submodule:
+            self.assertEqual(updater.update(self.config), 0)
+        self.assertEqual(submodule.call_count, 1)
+        self.assertEqual(submodule.call_args.args[1:], ("subprojects/udis86", GitHubFixture.commit))
 
     def test_new_release_updates_both_specs_and_resets_snapshot_counter(self):
         with patch.object(GitHubFixture, "version", "0.57.0"):

@@ -1,19 +1,20 @@
 %global upstream_version 0.56.2
-%global snapshot 93
+%global snapshot 94
 
 %global lua54_compat 0
+%global lua_min_version 5.5
+%global lua_next_version 5.6
 %if 0%{?fedora} && 0%{?fedora} < 45
 %global lua54_compat 1
+%global lua_min_version 5.4
+%global lua_next_version 5.5
 %endif
 
-%global hyprland_commit c7216a9807a2683ce243f6ed14ae01e7e884c426
+%global hyprland_commit a1c2428f79b3b05c3fd36c27378e3538c8c6a014
 %global hyprland_shortcommit %(c=%{hyprland_commit}; echo ${c:0:7})
-%global hyprland_commits 7928
-%global hyprland_commit_date Tue Oct 20 20:21:10 2026
-%global hyprland_commit_message_b64 cmVuZGVyL2RlY29yYXRpb246IGZpeCBtaXNzaW5nIG92ZXJyaWRlcyAoIzE2NjA5KQ==
-
-%global protocols_commit cc9a8fd253bdc00f48a967ecf4828211ef08751f
-%global protocols_shortcommit %(c=%{protocols_commit}; echo ${c:0:7})
+%global hyprland_commits 7957
+%global hyprland_commit_date Fri Oct 23 19:31:33 2026
+%global hyprland_commit_message_b64 bGF5b3V0L3Njcm9sbGluZzogZml4IGluY29uc2lzdGVudCBjb2x1bW4gd2lkdGhzIGF0IHRhcGUgZWRnZXMsIG1pc2MgaW1wcm92ZW1lbnRzICgjMTY1ODEp
 
 %global udis86_commit 5336633af70f3917760a6d441ff02d93477b0c86
 %global udis86_shortcommit %(c=%{udis86_commit}; echo ${c:0:7})
@@ -24,7 +25,7 @@ Release:        %autorelease
 Summary:        Dynamic tiling Wayland compositor that doesn't sacrifice on its looks
 
 # Hyprland: BSD-3-Clause
-# subprojects/hyprland-protocols: BSD-3-Clause
+# hyprland-protocols: BSD-3-Clause
 # subprojects/udis86: BSD-2-Clause
 # protocols/ext-workspace-unstable-v1.xml: HPND-sell-variant
 # protocols/wlr-foreign-toplevel-management-unstable-v1.xml: HPND-sell-variant
@@ -33,7 +34,6 @@ Summary:        Dynamic tiling Wayland compositor that doesn't sacrifice on its 
 License:        BSD-3-Clause AND BSD-2-Clause AND HPND-sell-variant AND LGPL-2.1-or-later
 URL:            https://github.com/hyprwm/Hyprland
 Source0:        %{url}/archive/%{hyprland_commit}/%{name}-%{hyprland_shortcommit}.tar.gz
-Source1:        https://github.com/hyprwm/hyprland-protocols/archive/%{protocols_commit}/protocols-%{protocols_shortcommit}.tar.gz
 Source2:        https://github.com/canihavesomecoffee/udis86/archive/%{udis86_commit}/udis86-%{udis86_shortcommit}.tar.gz
 Source3:        macros.hyprland
 Patch0:         escape-version-metadata.patch
@@ -51,8 +51,9 @@ BuildRequires:  systemd-rpm-macros
 BuildRequires:  pkgconfig(aquamarine) >= 0.15.0
 BuildRequires:  pkgconfig(hyprcursor) >= 0.1.7
 BuildRequires:  pkgconfig(hyprgraphics) >= 0.5.1
+BuildRequires:  pkgconfig(hyprland-protocols) >= 0.8.0
 BuildRequires:  pkgconfig(hyprlang) >= 0.6.7
-BuildRequires:  pkgconfig(hyprutils) >= 0.14.0
+BuildRequires:  pkgconfig(hyprutils) >= 0.14.3
 BuildRequires:  pkgconfig(hyprwayland-scanner) >= 0.3.10
 BuildRequires:  pkgconfig(hyprwire)
 
@@ -93,26 +94,29 @@ BuildRequires:  pkgconfig(xcb-res)
 BuildRequires:  pkgconfig(xcb-xfixes)
 
 # Fedora 44 and older provide Lua 5.4. Fedora 45 and newer provide Lua 5.5
-%if %{lua54_compat}
-BuildRequires:  pkgconfig(lua)
-%else
-BuildRequires:  pkgconfig(lua) >= 5.5
-%endif
+BuildRequires:  pkgconfig(lua) >= %{lua_min_version}
+BuildRequires:  pkgconfig(lua) < %{lua_next_version}
 
 # Fedora's udis86 package is a different implementation from the modified
 # canihavesomecoffee fork bundled by Hyprland.
 Provides:       bundled(udis86) = 1.7.2^1.%{udis86_shortcommit}
 
+# Satisfy Hyprland dependencies while keeping both variants mutually exclusive.
+Provides:       hyprland = %{version}-%{release}
+Provides:       hyprland%{?_isa} = %{version}-%{release}
+Conflicts:      hyprland
+
 Requires:       aquamarine%{?_isa} >= 0.15.0
 Requires:       hyprcursor%{?_isa} >= 0.1.7
 Requires:       hyprgraphics%{?_isa} >= 0.5.1
 Requires:       hyprlang%{?_isa} >= 0.6.7
-Requires:       hyprutils%{?_isa} >= 0.14.0
+Requires:       hyprutils%{?_isa} >= 0.14.3
 Requires:       xorg-x11-server-Xwayland%{?_isa}
 
 # Used by the default configuration.
 Recommends:     kitty
-Recommends:     hyprland-qtutils
+Recommends:     hyprland-guiutils
+Recommends:     hyprlauncher
 
 # Logind needs polkit to create a graphical session.
 Recommends:     polkit
@@ -132,6 +136,8 @@ Summary:        Files for a uwsm-managed Hyprland session
 BuildArch:      noarch
 Requires:       %{name} = %{version}-%{release}
 Requires:       uwsm
+Provides:       hyprland-uwsm = %{version}-%{release}
+Conflicts:      hyprland-uwsm
 
 %description uwsm
 Desktop-session files for starting Hyprland through the Universal Wayland
@@ -142,6 +148,12 @@ Summary:        Development files for %{name}
 License:        BSD-3-Clause
 Requires:       %{name}%{?_isa} = %{version}-%{release}
 Requires:       pkgconfig(xkbcommon) >= 1.11.0
+Requires:       pkgconfig(lua) >= %{lua_min_version}
+Requires:       pkgconfig(lua) < %{lua_next_version}
+Requires:       pkgconfig(libeis-1.0)
+Provides:       hyprland-devel = %{version}-%{release}
+Provides:       hyprland-devel%{?_isa} = %{version}-%{release}
+Conflicts:      hyprland-devel
 
 %description devel
 Headers, generated protocol files, pkg-config metadata, and RPM macros for
@@ -151,24 +163,20 @@ building software and plugins against %{name}.
 %autosetup -n Hyprland-%{hyprland_commit} -N
 %patch -P 0 -p1
 
-# Replace the empty Git submodule directories with the exact pinned sources.
-rm -rf subprojects/hyprland-protocols subprojects/udis86
-mkdir -p subprojects/hyprland-protocols subprojects/udis86
+# Replace the empty Git submodule directory with the exact pinned source.
+rm -rf subprojects/udis86
+mkdir -p subprojects/udis86
 
-tar -xf %{SOURCE1} -C subprojects/hyprland-protocols --strip-components=1
 tar -xf %{SOURCE2} -C subprojects/udis86 --strip-components=1
 
-# Always use the pinned bundled subprojects, even when similarly named system
-# packages happen to enter the buildroot through another dependency.
+# Use the pinned udis86 fork even if a system implementation is installed.
 sed -Ei \
     -e 's|^pkg_check_modules\(udis_dep .*$|set(udis_dep_FOUND FALSE)|' \
     -e 's|^  find_library\(udis_nopc udis86\)$|  set(udis_nopc "udis_nopc-NOTFOUND")|' \
-    -e 's|^pkg_check_modules\(hyprland_protocols_dep .*$|set(hyprland_protocols_dep_FOUND FALSE)|' \
     CMakeLists.txt
 
 grep -Fxq 'set(udis_dep_FOUND FALSE)' CMakeLists.txt
 grep -Fxq '  set(udis_nopc "udis_nopc-NOTFOUND")' CMakeLists.txt
-grep -Fxq 'set(hyprland_protocols_dep_FOUND FALSE)' CMakeLists.txt
 
 # Temporary compatibility for Fedora releases that still provide Lua 5.4
 # Drop this branch once all supported Fedora releases provide Lua 5.5
@@ -183,7 +191,9 @@ grep -Fxq \
     CMakeLists.txt
 %endif
 
-cp -p subprojects/hyprland-protocols/LICENSE LICENSE-hyprland-protocols
+# Export dependencies included by the installed Lua and input headers.
+sed -i '/^Requires:/s/$/, lua >= %{lua_min_version}, lua < %{lua_next_version}, libeis-1.0/' hyprland.pc.in
+
 cp -p subprojects/udis86/LICENSE LICENSE-udis86
 
 # Generate the packaged RPM macro without modifying the source in %{_sourcedir}.
@@ -226,7 +236,7 @@ install -Dpm0644 macros.hyprland \
     %{buildroot}%{_rpmconfigdir}/macros.d/macros.hyprland
 
 %files
-%license LICENSE LICENSE-hyprland-protocols LICENSE-udis86
+%license LICENSE LICENSE-udis86
 %{_bindir}/Hyprland
 %{_bindir}/hyprland
 %{_bindir}/hyprctl

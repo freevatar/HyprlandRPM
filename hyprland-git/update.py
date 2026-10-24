@@ -759,9 +759,6 @@ def update(config: Config) -> int:
     new_commit, commit_timestamp, commit_title = github.main_commit()
     commit_count = github.commit_count(new_commit)
     commit_date = format_commit_date(commit_timestamp)
-    protocols_commit = github.submodule_commit(
-        "subprojects/hyprland-protocols", new_commit
-    )
     udis86_commit = github.submodule_commit("subprojects/udis86", new_commit)
 
     git_spec.update_globals(
@@ -770,7 +767,6 @@ def update(config: Config) -> int:
             "hyprland_commits": str(commit_count),
             "hyprland_commit_date": commit_date,
             "hyprland_commit_message_b64": encode_text_base64(commit_title),
-            "protocols_commit": protocols_commit,
             "udis86_commit": udis86_commit,
         }
     )

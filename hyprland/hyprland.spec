@@ -2,13 +2,17 @@
 %global hyprland_commit efb50993780079460b0cbed1363e2166a2de1d9f
 
 %global lua54_compat 0
+%global lua_min_version 5.5
+%global lua_next_version 5.6
 %if 0%{?fedora} && 0%{?fedora} < 45
 %global lua54_compat 1
+%global lua_min_version 5.4
+%global lua_next_version 5.5
 %endif
 
 Name:           hyprland
 Version:        %{upstream_version}
-Release:        %autorelease -b4
+Release:        %autorelease -b5
 Summary:        Dynamic tiling Wayland compositor that doesn't sacrifice on its looks
 
 # Hyprland: BSD-3-Clause
@@ -80,15 +84,15 @@ BuildRequires:  pkgconfig(xcb-res)
 BuildRequires:  pkgconfig(xcb-xfixes)
 
 # Fedora 44 and older provide Lua 5.4. Fedora 45 and newer provide Lua 5.5
-%if %{lua54_compat}
-BuildRequires:  pkgconfig(lua)
-%else
-BuildRequires:  pkgconfig(lua) >= 5.5
-%endif
+BuildRequires:  pkgconfig(lua) >= %{lua_min_version}
+BuildRequires:  pkgconfig(lua) < %{lua_next_version}
 
 # Fedora's udis86 package is a different implementation from the modified
 # canihavesomecoffee fork bundled by Hyprland.
 Provides:       bundled(udis86) = 1.7.2
+
+# The stable and snapshot packages install the same paths.
+Conflicts:      hyprland-git
 
 Requires:       aquamarine%{?_isa} >= 0.9.3
 Requires:       hyprcursor%{?_isa} >= 0.1.7
@@ -99,7 +103,8 @@ Requires:       xorg-x11-server-Xwayland%{?_isa}
 
 # Used by the default configuration.
 Recommends:     kitty
-Recommends:     hyprland-qtutils
+Recommends:     hyprland-guiutils
+Recommends:     hyprlauncher
 
 # Logind needs polkit to create a graphical session.
 Recommends:     polkit
@@ -119,6 +124,7 @@ Summary:        Files for a uwsm-managed Hyprland session
 BuildArch:      noarch
 Requires:       %{name} = %{version}-%{release}
 Requires:       uwsm
+Conflicts:      hyprland-git-uwsm
 
 %description uwsm
 Desktop-session files for starting Hyprland through the Universal Wayland
@@ -129,6 +135,10 @@ Summary:        Development files for %{name}
 License:        BSD-3-Clause
 Requires:       %{name}%{?_isa} = %{version}-%{release}
 Requires:       pkgconfig(xkbcommon) >= 1.11.0
+Requires:       pkgconfig(lua) >= %{lua_min_version}
+Requires:       pkgconfig(lua) < %{lua_next_version}
+Requires:       pkgconfig(libeis-1.0)
+Conflicts:      hyprland-git-devel
 
 %description devel
 Headers, generated protocol files, pkg-config metadata, and RPM macros for
@@ -150,6 +160,9 @@ grep -Fxq \
     'pkg_search_module(LUA REQUIRED IMPORTED_TARGET GLOBAL lua)' \
     CMakeLists.txt
 %endif
+
+# Export dependencies included by the installed Lua and input headers.
+sed -i '/^Requires:/s/$/, lua >= %{lua_min_version}, lua < %{lua_next_version}, libeis-1.0/' hyprland.pc.in
 
 cp -p subprojects/hyprland-protocols/LICENSE LICENSE-hyprland-protocols
 cp -p subprojects/udis86/LICENSE LICENSE-udis86
