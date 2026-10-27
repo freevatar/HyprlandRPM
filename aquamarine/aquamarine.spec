@@ -1,6 +1,6 @@
 Name:           aquamarine
 Version:        0.15.1
-Release:        %autorelease -b2
+Release:        %autorelease -b3
 Summary:        Lightweight Linux rendering backend library
 
 # Aquamarine is BSD-3-Clause; generated Wayland protocol bindings are MIT.
@@ -23,6 +23,10 @@ Patch4:         %{url}/commit/52ea11f06dd492f34b3cc0b39a9c805beecafcff.patch
 Patch5:         %{url}/commit/be8909b544fb7c8def8be0b7624ecf3d99f3bfe5.patch
 # headless: reuse parent Wayland buffer formats when nested
 Patch6:         %{url}/commit/163b138cfb22873de1e1bf253d57bf03154d1acd.patch
+
+# Keep forced connector queries outside the compositor's realtime CPU budget.
+# https://github.com/freevatar/aquamarine/commit/87c985ed4e04221b7766dcd1b1843b0094915689
+Patch7:         nonrt-connector-probes.patch
 
 # https://fedoraproject.org/wiki/Changes/EncourageI686LeafRemoval
 ExcludeArch:    %{ix86}
@@ -85,7 +89,7 @@ sed -n '/^\/\*$/,/^\*\/$/p' protocols/*.hpp > LICENSE-protocols
 
 %check
 # simpleWindow needs a usable Wayland session; the remaining tests are headless.
-%ctest --output-on-failure -R '^(attachments|output|commitThread)$'
+%ctest --output-on-failure -R '^(attachments|output|commitThread|connectorProbe|connectorProbeRT)$'
 
 %files
 %license LICENSE LICENSE-protocols

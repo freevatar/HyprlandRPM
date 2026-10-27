@@ -1,0 +1,529 @@
+From 87c985ed4e04221b7766dcd1b1843b0094915689 Mon Sep 17 00:00:00 2001
+From: Freevatar <freevatar@users.noreply.github.com>
+Date: Sat, 24 Oct 2026 18:44:15 -0400
+Subject: [PATCH] drm: run forced connector probes outside the realtime thread
+
+Forced connector query can exceed RLIMIT_RTTIME in one ioctl and kill compositor before its SIGXCPU handler can run
+
+Run queries synchronously through a persistent SCHED_OTHER worker
+---
+ CMakeLists.txt                     |  12 ++
+ src/backend/drm/ConnectorProbe.cpp | 125 ++++++++++++++++
+ src/backend/drm/ConnectorProbe.hpp |  64 ++++++++
+ src/backend/drm/DRM.cpp            |  13 +-
+ tests/ConnectorProbe.cpp           | 229 +++++++++++++++++++++++++++++
+ 5 files changed, 437 insertions(+), 6 deletions(-)
+ create mode 100644 src/backend/drm/ConnectorProbe.cpp
+ create mode 100644 src/backend/drm/ConnectorProbe.hpp
+ create mode 100644 tests/ConnectorProbe.cpp
+
+diff --git a/CMakeLists.txt b/CMakeLists.txt
+index ae9083b..c350247 100644
+--- a/CMakeLists.txt
++++ b/CMakeLists.txt
+@@ -171,6 +171,18 @@ add_test(
+   COMMAND commitThread "commitThread")
+ add_dependencies(tests commitThread)
+ 
++add_executable(connectorProbe "tests/ConnectorProbe.cpp" "src/backend/drm/ConnectorProbe.cpp")
++target_include_directories(connectorProbe PRIVATE "./src/backend/drm")
++target_link_libraries(connectorProbe PRIVATE PkgConfig::deps Threads::Threads)
++add_test(NAME "connectorProbe" COMMAND connectorProbe)
++# RT limits are Linux-specific.
++if(CMAKE_SYSTEM_NAME STREQUAL "Linux")
++  add_test(NAME "connectorProbeRT" COMMAND connectorProbe --rt)
++  set_tests_properties(connectorProbeRT PROPERTIES SKIP_RETURN_CODE 77 TIMEOUT 15 LABELS "privileged")
++endif()
++set_tests_properties(connectorProbe PROPERTIES TIMEOUT 10)
++add_dependencies(tests connectorProbe)
++
+ # Installation
+ install(TARGETS aquamarine)
+ install(DIRECTORY "include/aquamarine" DESTINATION ${CMAKE_INSTALL_INCLUDEDIR})
+diff --git a/src/backend/drm/ConnectorProbe.cpp b/src/backend/drm/ConnectorProbe.cpp
+new file mode 100644
+index 0000000..2f26d99
+--- /dev/null
++++ b/src/backend/drm/ConnectorProbe.cpp
+@@ -0,0 +1,125 @@
++#include "ConnectorProbe.hpp"
++
++#include <cerrno>
++#include <new>
++#include <pthread.h>
++#include <sched.h>
++#include <system_error>
++#include <utility>
++#include <hyprutils/memory/UniquePtr.hpp>
++
++#ifdef __linux__
++#include <sys/syscall.h>
++#include <unistd.h>
++#endif
++
++using namespace Hyprutils::Memory;
++
++static int useNormalScheduling() {
++    const sched_param PARAM = {
++        .sched_priority = 0,
++    };
++#ifdef __linux__
++    // Keep RESET_ON_FORK because clearing it needs CAP_SYS_NICE.
++    // Use per-thread syscalls because musl's sched_setscheduler returns ENOSYS.
++    const auto POLICY = syscall(SYS_sched_getscheduler, 0);
++    if (POLICY < 0)
++        return errno;
++
++    // Do not require permission to change a policy that is already correct.
++    if ((POLICY & ~SCHED_RESET_ON_FORK) == SCHED_OTHER)
++        return 0;
++
++    if (syscall(SYS_sched_setscheduler, 0, SCHED_OTHER | (POLICY & SCHED_RESET_ON_FORK), &PARAM) < 0)
++        return errno;
++
++    return 0;
++#else
++    return pthread_setschedparam(pthread_self(), SCHED_OTHER, &PARAM);
++#endif
++}
++
++Aquamarine::CConnectorProbe::CConnectorProbe(FQuery query) : m_query(std::move(query)), m_thread([this](std::stop_token stop) { run(stop); }) {
++    // Accept queries only after worker has confirmed SCHED_OTHER.
++    std::unique_lock lock(m_mutex);
++    m_condition.wait(lock, [this] { return m_started; });
++    if (m_startError)
++        throw std::system_error(m_startError, std::generic_category(), "Connector probe worker scheduling");
++}
++
++drmModeConnector* Aquamarine::CConnectorProbe::query(int fd, uint32_t connectorID) {
++    // Hold submission lock through wait so another caller cannot replace this request or consume its result.
++    SResult result;
++    {
++        std::scoped_lock submitLock(m_submissionMutex);
++        std::unique_lock lock(m_mutex);
++        m_result.reset();
++        m_request = SRequest{
++            .fd          = fd,
++            .connectorID = connectorID,
++        };
++        m_condition.notify_all();
++        m_condition.wait(lock, [this] { return m_result.has_value(); });
++        // NOLINTNEXTLINE(bugprone-unchecked-optional-access): wait's predicate holds with m_mutex locked.
++        result = m_result.value();
++    }
++
++    // errno is thread-local, preserve caller's value on success.
++    if (!result.connector)
++        errno = result.error;
++    return result.connector;
++}
++
++void Aquamarine::CConnectorProbe::run(std::stop_token stop) {
++    const int START_ERROR = useNormalScheduling();
++    {
++        std::scoped_lock lock(m_mutex);
++        m_startError = START_ERROR;
++        m_started    = true;
++    }
++    m_condition.notify_all();
++    if (START_ERROR)
++        return;
++
++    while (true) {
++        SRequest request;
++        {
++            std::unique_lock lock(m_mutex);
++            if (!m_condition.wait(lock, stop, [this] { return m_request.has_value(); }))
++                return;
++            // NOLINTNEXTLINE(bugprone-unchecked-optional-access): wait returned true with m_mutex locked.
++            request = m_request.value();
++            m_request.reset();
++        }
++
++        SResult result;
++        errno            = 0;
++        result.connector = m_query(request.fd, request.connectorID);
++        result.error     = result.connector ? 0 : (errno ? errno : EIO);
++
++        {
++            std::scoped_lock lock(m_mutex);
++            m_result = result;
++        }
++        m_condition.notify_all();
++    }
++}
++
++namespace Aquamarine::NConnectorProbe {
++    // Queries are synchronous and hold no backend references.
++    // Sharing one worker also covers GPU discovery before a DRM backend exists,
++    //   without changing public backend layout or creating a thread per probe.
++    static CUniquePointer<CConnectorProbe>& worker() {
++        static auto instance = makeUnique<CConnectorProbe>();
++        return instance;
++    }
++}
++
++drmModeConnector* Aquamarine::probeDRMConnector(int fd, uint32_t connectorID) {
++    try {
++        return NConnectorProbe::worker()->query(fd, connectorID);
++    } catch (const std::system_error& e) { errno = e.code().value(); } catch (const std::bad_alloc&) {
++        errno = ENOMEM;
++    }
++    return nullptr;
++}
+diff --git a/src/backend/drm/ConnectorProbe.hpp b/src/backend/drm/ConnectorProbe.hpp
+new file mode 100644
+index 0000000..6a0a8f1
+--- /dev/null
++++ b/src/backend/drm/ConnectorProbe.hpp
+@@ -0,0 +1,64 @@
++#pragma once
++
++#include <condition_variable>
++#include <cstdint>
++#include <functional>
++#include <mutex>
++#include <optional>
++#include <stop_token>
++#include <thread>
++#include <xf86drmMode.h>
++
++// NOLINTNEXTLINE(readability-identifier-naming): Keep the existing library namespace.
++namespace Aquamarine {
++    // Forced probes can exceed RLIMIT_RTTIME in one ioctl before a SIGXCPU handler can run.
++    // Keep only the query on a SCHED_OTHER worker.
++    // Callers wait for result and update their own backend state.
++    //
++    // Keep fd alive until query() returns and free results with drmModeFreeConnector.
++    // Finish all calls before destruction. Running query cannot safely be cancelled.
++    class CConnectorProbe {
++      public:
++        using FQuery = std::function<drmModeConnector*(int, uint32_t)>;
++
++        explicit CConnectorProbe(FQuery query = drmModeGetConnector);
++        ~CConnectorProbe() = default;
++
++        CConnectorProbe(const CConnectorProbe&)            = delete;
++        CConnectorProbe& operator=(const CConnectorProbe&) = delete;
++        CConnectorProbe(CConnectorProbe&&)                 = delete;
++        CConnectorProbe&  operator=(CConnectorProbe&&)     = delete;
++
++        drmModeConnector* query(int fd, uint32_t connectorID);
++
++      private:
++        struct SRequest {
++            int      fd          = -1;
++            uint32_t connectorID = 0;
++        };
++
++        struct SResult {
++            drmModeConnector* connector = nullptr;
++            int               error     = 0;
++        };
++
++        void                        run(std::stop_token stop);
++
++        const FQuery                m_query;
++        std::mutex                  m_submissionMutex;
++        std::mutex                  m_mutex;
++        std::condition_variable_any m_condition;
++        std::optional<SRequest>     m_request;
++        std::optional<SResult>      m_result;
++        bool                        m_started    = false;
++        int                         m_startError = 0;
++
++        // Keep last: jthread stops and joins before the state it uses is destroyed.
++        // Stop token wakes idle wait.
++        std::jthread m_thread;
++    };
++
++    // Process-wide synchronous worker, shared by all DRM backends.
++    // Never fall back to probing on an RT caller.
++    drmModeConnector* probeDRMConnector(int fd, uint32_t connectorID);
++}
+diff --git a/src/backend/drm/DRM.cpp b/src/backend/drm/DRM.cpp
+index 2f3dcc7..ebb9ae2 100644
+--- a/src/backend/drm/DRM.cpp
++++ b/src/backend/drm/DRM.cpp
+@@ -40,6 +40,7 @@ extern "C" {
+ #include "Renderer.hpp"
+ #include "OutputTiming.hpp"
+ #include "AsyncCommit.hpp"
++#include "ConnectorProbe.hpp"
+ 
+ #include <hyprutils/utils/ScopeGuard.hpp>
+ using Hyprutils::Utils::CScopeGuard;
+@@ -103,7 +104,7 @@ static int gpuNumBuiltinPanels(const SP<CSessionDevice> gpu) {
+ 
+     int num = 0;
+     for (int i = 0; i < resources->count_connectors; ++i) {
+-        auto drmConn = drmModeGetConnector(gpu->fd, resources->connectors[i]);
++        auto drmConn = probeDRMConnector(gpu->fd, resources->connectors[i]);
+         if (!drmConn)
+             continue;
+ 
+@@ -1234,11 +1235,10 @@ void Aquamarine::CDRMBackend::recheckOutputs() {
+ 
+             backend->log(AQ_LOG_DEBUG, std::format("drm: Connector {} connected", conn->szName));
+ 
+-            auto drmConn = drmModeGetConnector(gpu->fd, conn->id);
++            auto drmConn = probeDRMConnector(gpu->fd, conn->id);
+ 
+-            // ??? was valid 5 sec ago...
+             if (!drmConn) {
+-                backend->log(AQ_LOG_ERROR, std::format("drm: Connector {} couldn't be connected, drm connector id is no longer valid??", conn->szName));
++                backend->log(AQ_LOG_ERROR, std::format("drm: Connector {} couldn't be queried: {}", conn->szName, strerror(errno)));
+                 continue;
+             }
+ 
+@@ -1264,12 +1264,13 @@ void Aquamarine::CDRMBackend::scanConnectors() {
+         uint32_t          connectorID = resources->connectors[i];
+ 
+         SP<SDRMConnector> conn;
+-        auto              drmConn = drmModeGetConnector(gpu->fd, connectorID);
++        auto              drmConn     = probeDRMConnector(gpu->fd, connectorID);
++        const int         QUERY_ERROR = errno;
+ 
+         backend->log(AQ_LOG_DEBUG, std::format("drm: Scanning connector id {}", connectorID));
+ 
+         if (!drmConn) {
+-            backend->log(AQ_LOG_ERROR, std::format("drm: Failed to get connector id {}", connectorID));
++            backend->log(AQ_LOG_ERROR, std::format("drm: Failed to get connector id {}: {}", connectorID, strerror(QUERY_ERROR)));
+             continue;
+         }
+ 
+diff --git a/tests/ConnectorProbe.cpp b/tests/ConnectorProbe.cpp
+new file mode 100644
+index 0000000..97aac5b
+--- /dev/null
++++ b/tests/ConnectorProbe.cpp
+@@ -0,0 +1,229 @@
++#include "ConnectorProbe.hpp"
++#include "shared.hpp"
++
++#include <array>
++#include <barrier>
++#include <cerrno>
++#include <ctime>
++#include <initializer_list>
++#include <pthread.h>
++#include <sched.h>
++#include <stdexcept>
++#include <string_view>
++#include <thread>
++#include <hyprutils/memory/Casts.hpp>
++
++#ifdef __linux__
++#include <linux/capability.h>
++#include <sys/resource.h>
++#include <sys/syscall.h>
++#include <sys/wait.h>
++#include <unistd.h>
++#endif
++
++using namespace Aquamarine;
++using namespace Hyprutils::Memory;
++
++static uint64_t threadCPUTime() {
++    timespec ts{};
++    if (clock_gettime(CLOCK_THREAD_CPUTIME_ID, &ts))
++        throw std::runtime_error("clock_gettime");
++    return (sc<uint64_t>(ts.tv_sec) * 1'000'000'000) + ts.tv_nsec;
++}
++
++static int policy() {
++#ifdef __linux__
++    // Read kernel policy
++    // pthread_getschedparam may return stale cached values
++    return sc<int>(syscall(SYS_sched_getscheduler, 0));
++#else
++    int         result = 0;
++    sched_param param{};
++    return pthread_getschedparam(pthread_self(), &result, &param) ? -1 : result;
++#endif
++}
++
++// Burn CPU past the RT test's hard limit.
++// Sleeping would reset RT accounting.
++// Pass zero when only the worker's scheduling policy needs checking.
++static int queryScheduling(uint64_t cpuTimeNS = 0) {
++    int             ret            = 0;
++    const auto      CALLER         = std::this_thread::get_id();
++    const int       CALLER_POLICY  = policy();
++    int             workerPolicy   = -1;
++    bool            separateThread = false;
++    CConnectorProbe probe([&](int, uint32_t) -> drmModeConnector* {
++        workerPolicy = policy();
++#ifdef __linux__
++        workerPolicy &= ~SCHED_RESET_ON_FORK;
++#endif
++        separateThread = std::this_thread::get_id() != CALLER;
++        if (cpuTimeNS) {
++            const auto BEGIN = threadCPUTime();
++            while (threadCPUTime() - BEGIN < cpuTimeNS) {
++                ;
++            }
++        }
++        errno = ENODEV;
++        return nullptr;
++    });
++
++    auto*     result = probe.query(42, 1233);
++    const int ERROR  = errno;
++    EXPECT(result == nullptr, true);
++    EXPECT(ERROR, ENODEV);
++    EXPECT(workerPolicy, SCHED_OTHER);
++    EXPECT(separateThread, true);
++    EXPECT(policy(), CALLER_POLICY);
++    return ret;
++}
++
++static int resultsAndFailures() {
++    int                    ret = 0;
++    const drmModeConnector EMPTY_CONNECTOR{
++        .connection = DRM_MODE_UNKNOWNCONNECTION,
++        .subpixel   = DRM_MODE_SUBPIXEL_UNKNOWN,
++    };
++    std::array connectors{
++        EMPTY_CONNECTOR,
++        EMPTY_CONNECTOR,
++    };
++    CConnectorProbe probe([&](int fd, uint32_t id) -> drmModeConnector* {
++        if (fd < 0) {
++            errno = EBADF;
++            return nullptr;
++        }
++        if (id == 102)
++            return nullptr; // Missing errno must become EIO.
++        if (fd != 42 + sc<int>(id)) {
++            errno = EINVAL;
++            return nullptr;
++        }
++
++        return &connectors.at(id);
++    });
++
++    const auto      EXPECT_FAILURE = [&](int fd, uint32_t id, int expectedError) {
++        const auto CONNECTOR = probe.query(fd, id);
++        const int  ERROR     = errno;
++        EXPECT(CONNECTOR == nullptr, true);
++        EXPECT(ERROR, expectedError);
++    };
++    EXPECT_FAILURE(-1, 0, EBADF);
++    EXPECT_FAILURE(42, 102, EIO);
++
++    // Concurrent callers must receive their own connector and retain their errno.
++    std::array<bool, 2>         matched{};
++    std::array<std::jthread, 2> callers;
++    std::barrier                start(2);
++    for (uint32_t i = 0; i < matched.size(); ++i) {
++        callers.at(i) = std::jthread([&, i] {
++            start.arrive_and_wait();
++            errno           = ERANGE;
++            auto* connector = probe.query(42 + i, i);
++            matched.at(i)   = connector == &connectors.at(i) && errno == ERANGE;
++        });
++    }
++    for (auto& caller : callers)
++        caller.join();
++    for (const bool MATCHED : matched)
++        EXPECT(MATCHED, true);
++    return ret;
++}
++
++static int idleShutdown() {
++    // Destruction must stop and join an idle worker.
++    CConnectorProbe probe;
++    return 0;
++}
++
++#ifdef __linux__
++static int childTest(const std::function<int()>& test) {
++    // Fork before creating workers so child cannot inherit their locked mutexes.
++    const pid_t CHILD = fork();
++    if (CHILD < 0)
++        return 1;
++    if (CHILD == 0) {
++        alarm(5);
++        int result = 1;
++        try {
++            result = test();
++        } catch (const std::exception& e) { std::cout << e.what() << '\n'; }
++        std::cout.flush();
++        _exit(result);
++    }
++    int status = 0;
++    while (waitpid(CHILD, &status, 0) < 0) {
++        if (errno != EINTR)
++            return 1;
++    }
++    if (WIFEXITED(status))
++        return WEXITSTATUS(status);
++    std::cout << "Test child terminated by signal " << WTERMSIG(status) << '\n';
++    return 1;
++}
++
++static int realtimeTest(int flags) {
++    // Isolate finite RT limit from the test runner and compositor.
++    // Create worker only after promotion so inherited RT scheduling is exercised.
++    return childTest([=] {
++        const rlimit LIMIT = {
++            .rlim_cur = 150000,
++            .rlim_max = 200000,
++        };
++        const rlimit CORE_LIMIT = {
++            .rlim_cur = 0,
++            .rlim_max = 0,
++        };
++        const sched_param PARAM = {
++            .sched_priority = 1,
++        };
++        if (setrlimit(RLIMIT_CORE, &CORE_LIMIT) || setrlimit(RLIMIT_RTTIME, &LIMIT)) {
++            std::cout << "Failed to configure RT test limits, errno=" << errno << '\n';
++            return 1;
++        }
++        if (syscall(SYS_sched_setscheduler, 0, SCHED_RR | flags, &PARAM)) {
++            if (errno == EPERM || errno == EACCES) {
++                std::cout << "SKIP: real-time test needs permission to set RT scheduling\n";
++                return 77;
++            }
++            return 1;
++        }
++        // Drop capabilities so worker demotion cannot rely on CAP_SYS_NICE.
++        __user_cap_header_struct header{
++            .version = _LINUX_CAPABILITY_VERSION_3,
++            .pid     = 0,
++        };
++        __user_cap_data_struct capabilities[2]{};
++        if (syscall(SYS_capset, &header, capabilities))
++            return 1;
++        return queryScheduling(350'000'000);
++    });
++}
++#endif
++
++int main(int argc, char** argv) {
++#ifdef __linux__
++    if (argc == 2 && std::string_view(argv[1]) == "--rt") {
++        for (const int FLAGS : {
++                 0,
++                 SCHED_RESET_ON_FORK,
++             }) {
++            const int RET = realtimeTest(FLAGS);
++            if (RET)
++                return RET;
++        }
++        return 0;
++    }
++#endif
++    if (argc > 1)
++        return 1;
++
++    try {
++        // Run every case even if an earlier one fails.
++        return queryScheduling() | resultsAndFailures() | idleShutdown();
++    } catch (const std::exception& e) {
++        std::cout << e.what() << '\n';
++        return 1;
++    }
++}
