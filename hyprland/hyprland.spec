@@ -12,11 +12,11 @@
 
 Name:           hyprland
 Version:        %{upstream_version}
-Release:        %autorelease
+Release:        %autorelease -b2
 Summary:        Dynamic tiling Wayland compositor that doesn't sacrifice on its looks
 
 # Hyprland: BSD-3-Clause
-# subprojects/hyprland-protocols: BSD-3-Clause
+# hyprland-protocols: BSD-3-Clause
 # subprojects/udis86: BSD-2-Clause
 # protocols/ext-workspace-unstable-v1.xml: HPND-sell-variant
 # protocols/wlr-foreign-toplevel-management-unstable-v1.xml: HPND-sell-variant
@@ -32,18 +32,20 @@ Patch1:         lua54-hyprpm.patch
 # Build tools
 BuildRequires:  cmake >= 3.30
 BuildRequires:  gcc-c++
-# Hyprland 0.56.2's CMakeLists.txt requires Glaze 7...<8.
+# Retain the Glaze 7.x series used by this package.
 BuildRequires:  glaze-static >= 7
 BuildRequires:  glaze-static < 8
 BuildRequires:  ninja-build
 BuildRequires:  python3
+BuildRequires:  systemd-rpm-macros
 
 # Hypr ecosystem
-BuildRequires:  pkgconfig(aquamarine) >= 0.9.3
+BuildRequires:  pkgconfig(aquamarine) >= 0.15.0
 BuildRequires:  pkgconfig(hyprcursor) >= 0.1.7
 BuildRequires:  pkgconfig(hyprgraphics) >= 0.5.1
+BuildRequires:  pkgconfig(hyprland-protocols) >= 0.8.0
 BuildRequires:  pkgconfig(hyprlang) >= 0.6.7
-BuildRequires:  pkgconfig(hyprutils) >= 0.14.0
+BuildRequires:  pkgconfig(hyprutils) >= 0.14.3
 BuildRequires:  pkgconfig(hyprwayland-scanner) >= 0.3.10
 BuildRequires:  pkgconfig(hyprwire)
 
@@ -94,11 +96,11 @@ Provides:       bundled(udis86) = 1.7.2
 # The stable and snapshot packages install the same paths.
 Conflicts:      hyprland-git
 
-Requires:       aquamarine%{?_isa} >= 0.9.3
+Requires:       aquamarine%{?_isa} >= 0.15.0
 Requires:       hyprcursor%{?_isa} >= 0.1.7
 Requires:       hyprgraphics%{?_isa} >= 0.5.1
 Requires:       hyprlang%{?_isa} >= 0.6.7
-Requires:       hyprutils%{?_isa} >= 0.14.0
+Requires:       hyprutils%{?_isa} >= 0.14.3
 Requires:       xorg-x11-server-Xwayland%{?_isa}
 
 # Used by the default configuration.
@@ -164,7 +166,6 @@ grep -Fxq \
 # Export dependencies included by the installed Lua and input headers.
 sed -i '/^Requires:/s/$/, lua >= %{lua_min_version}, lua < %{lua_next_version}, libeis-1.0/' hyprland.pc.in
 
-cp -p subprojects/hyprland-protocols/LICENSE LICENSE-hyprland-protocols
 cp -p subprojects/udis86/LICENSE LICENSE-udis86
 
 # Generate the packaged RPM macro without modifying the source in %{_sourcedir}.
@@ -187,11 +188,18 @@ export GIT_DIRTY=%{shescape:clean}
 %install
 %cmake_install
 
+# Systemd user units belong in lib even when libraries are installed in lib64.
+if [ "%{_libdir}/systemd/user" != "%{_userunitdir}" ]; then
+    install -d %{buildroot}%{_userunitdir}
+    mv %{buildroot}%{_libdir}/systemd/user/hyprland-session.target \
+        %{buildroot}%{_userunitdir}/hyprland-session.target
+fi
+
 install -Dpm0644 macros.hyprland \
     %{buildroot}%{_rpmconfigdir}/macros.d/macros.hyprland
 
 %files
-%license LICENSE LICENSE-hyprland-protocols LICENSE-udis86
+%license LICENSE LICENSE-udis86
 %{_bindir}/Hyprland
 %{_bindir}/hyprland
 %{_bindir}/hyprctl
@@ -200,6 +208,7 @@ install -Dpm0644 macros.hyprland \
 %{_datadir}/hypr/
 %{_datadir}/wayland-sessions/hyprland.desktop
 %{_datadir}/xdg-desktop-portal/hyprland-portals.conf
+%{_userunitdir}/hyprland-session.target
 %{_mandir}/man1/Hyprland.1*
 %{_mandir}/man1/hyprctl.1*
 %{bash_completions_dir}/hypr*

@@ -16,6 +16,7 @@
       "glaze",
       "hyprcursor",
       "hyprgraphics",
+      "hyprland-protocols",
       "hyprlang",
       "hyprutils",
       "hyprwayland-scanner",
