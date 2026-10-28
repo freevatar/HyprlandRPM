@@ -1,24 +1,21 @@
 Name:           xdg-desktop-portal-hyprland
 Epoch:          1
-Version:        1.4.1
-Release:        %autorelease -b4
+Version:        1.5.0
+Release:        %autorelease
 Summary:        XDG Desktop Portal backend for Hyprland
 
 License:        BSD-3-Clause
 URL:            https://github.com/hyprwm/xdg-desktop-portal-hyprland
 Source0:        %{url}/archive/v%{version}/%{name}-%{version}.tar.gz
 
-Patch:          https://github.com/hyprwm/xdg-desktop-portal-hyprland/commit/b653ab53a435e92cc00f34771e6823bc59f2f740.patch
-Patch:          https://github.com/hyprwm/xdg-desktop-portal-hyprland/commit/688feb3d88404598f12440a668136e74044391de.patch
-
 BuildRequires:  cmake >= 3.19
 BuildRequires:  gcc-c++
 BuildRequires:  systemd-rpm-macros
 
-BuildRequires:  pkgconfig(Qt6Widgets)
 BuildRequires:  pkgconfig(gbm)
-BuildRequires:  pkgconfig(hyprland-protocols)
+BuildRequires:  pkgconfig(hyprland-protocols) >= 0.8.0
 BuildRequires:  pkgconfig(hyprlang) >= 0.2.0
+BuildRequires:  pkgconfig(hyprtoolkit) >= 0.6.0
 BuildRequires:  pkgconfig(hyprutils) >= 0.2.6
 BuildRequires:  pkgconfig(hyprwayland-scanner) >= 0.4.2
 BuildRequires:  pkgconfig(libdrm)
@@ -27,11 +24,10 @@ BuildRequires:  pkgconfig(libspa-0.2)
 BuildRequires:  pkgconfig(sdbus-c++) >= 2.0.0
 BuildRequires:  pkgconfig(uuid)
 BuildRequires:  pkgconfig(wayland-client)
-BuildRequires:  pkgconfig(wayland-protocols)
+BuildRequires:  pkgconfig(wayland-protocols) >= 1.39
 BuildRequires:  pkgconfig(wayland-scanner)
 
 Requires:       grim
-Requires:       qt6-qtwayland
 Requires:       slurp
 Requires:       xdg-desktop-portal
 Recommends:     hyprpicker

@@ -109,6 +109,7 @@
     "xdg-desktop-portal-hyprland": [
       "hyprland-protocols",
       "hyprlang",
+      "hyprtoolkit",
       "hyprutils",
       "hyprwayland-scanner"
     ]
