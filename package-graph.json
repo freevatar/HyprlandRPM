@@ -111,7 +111,6 @@
     "hyprwire": [
       "hyprutils"
     ],
-    "uwsm": [],
     "xdg-desktop-portal-hyprland": [
       "hyprland-protocols",
       "hyprlang",

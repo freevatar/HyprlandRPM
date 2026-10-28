@@ -309,8 +309,10 @@ def plan(root: Path, base: str = "HEAD", targets: tuple[str, ...] = DEFAULT_TARG
                 base_prepared = False
         previous = {name: package for graph in previous_graphs for name, package in graph.packages.items()}
         removed = previous.keys() - packages.keys()
-        if removed:
-            raise PlanError("package removal/rename needs a manual migration: " + ", ".join(sorted(removed)))
+        needed = {dependency for graph in previous_graphs
+                  for dependencies in graph.dependencies.values() for dependency in dependencies}
+        if removed & needed:
+            raise PlanError("package removal/rename needs a manual migration: " + ", ".join(sorted(removed & needed)))
         changed = set()
         common_changed = files_under(root, Path(".copr"), tracked) != files_under(baseline_root, Path(".copr"))
         for name, package in packages.items():

@@ -12,7 +12,7 @@
 
 Name:           hyprland
 Version:        %{upstream_version}
-Release:        %autorelease -b2
+Release:        %autorelease -b3
 Summary:        Dynamic tiling Wayland compositor that doesn't sacrifice on its looks
 
 # Hyprland: BSD-3-Clause
@@ -96,6 +96,9 @@ Provides:       bundled(udis86) = 1.7.2
 # The stable and snapshot packages install the same paths.
 Conflicts:      hyprland-git
 
+# Retire the session subpackage so its exact-version dependency cannot block upgrades.
+Obsoletes:      hyprland-uwsm < 0.57.0-3
+
 Requires:       aquamarine%{?_isa} >= 0.15.0
 Requires:       hyprcursor%{?_isa} >= 0.1.7
 Requires:       hyprgraphics%{?_isa} >= 0.5.1
@@ -106,13 +109,9 @@ Requires:       xorg-x11-server-Xwayland%{?_isa}
 # Used by the default configuration.
 Recommends:     kitty
 Recommends:     hyprland-guiutils
-Recommends:     hyprlauncher
 
 # Logind needs polkit to create a graphical session.
 Recommends:     polkit
-
-# Recommended systemd-managed startup method.
-Recommends:     %{name}-uwsm
 
 Recommends:     (qt5-qtwayland if qt5-qtbase-gui)
 Recommends:     (qt6-qtwayland if qt6-qtbase-gui)
@@ -120,17 +119,6 @@ Recommends:     (qt6-qtwayland if qt6-qtbase-gui)
 %description
 Hyprland is a dynamic tiling Wayland compositor that doesn't sacrifice on its looks.
 It supports multiple layouts, visual effects, flexible IPC, a powerful plugin system, and extensive customization.
-
-%package uwsm
-Summary:        Files for a uwsm-managed Hyprland session
-BuildArch:      noarch
-Requires:       %{name} = %{version}-%{release}
-Requires:       uwsm
-Conflicts:      hyprland-git-uwsm
-
-%description uwsm
-Desktop-session files for starting Hyprland through the Universal Wayland
-Session Manager.
 
 %package devel
 Summary:        Development files for %{name}
@@ -181,6 +169,7 @@ export GIT_DIRTY=%{shescape:clean}
     -G Ninja \
     -DCMAKE_BUILD_TYPE=Release \
     -DBUILD_TESTING=OFF \
+    -DNO_UWSM=ON \
     -DFETCHCONTENT_FULLY_DISCONNECTED=ON
 
 %cmake_build
@@ -214,9 +203,6 @@ install -Dpm0644 macros.hyprland \
 %{bash_completions_dir}/hypr*
 %{fish_completions_dir}/hypr*.fish
 %{zsh_completions_dir}/_hypr*
-
-%files uwsm
-%{_datadir}/wayland-sessions/hyprland-uwsm.desktop
 
 %files devel
 %{_includedir}/hyprland/
