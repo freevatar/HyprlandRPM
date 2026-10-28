@@ -21,7 +21,7 @@
 
 Name:           hyprland-git
 Version:        %{upstream_version}^%{snapshot}.git%{hyprland_shortcommit}
-Release:        %autorelease -b2
+Release:        %autorelease -b3
 Summary:        Dynamic tiling Wayland compositor that doesn't sacrifice on its looks
 
 # Hyprland: BSD-3-Clause
@@ -36,6 +36,8 @@ URL:            https://github.com/hyprwm/Hyprland
 Source0:        %{url}/archive/%{hyprland_commit}/%{name}-%{hyprland_shortcommit}.tar.gz
 Source2:        https://github.com/canihavesomecoffee/udis86/archive/%{udis86_commit}/udis86-%{udis86_shortcommit}.tar.gz
 Source3:        macros.hyprland
+Source4:        hyprctl.bash
+Source5:        check-hyprctl-completion.py
 Patch0:         escape-version-metadata.patch
 Patch1:         lua54-hyprpm.patch
 
@@ -223,6 +225,16 @@ fi
 install -Dpm0644 macros.hyprland \
     %{buildroot}%{_rpmconfigdir}/macros.d/macros.hyprland
 
+# Upstream removed hyprctl completions; maintain Bash support in this package.
+install -Dpm0644 %{SOURCE4} \
+    %{buildroot}%{bash_completions_dir}/hyprctl
+
+%check
+bash -n %{SOURCE4}
+python3 %{SOURCE5} --source-tree . \
+    --completion %{buildroot}%{bash_completions_dir}/hyprctl \
+    --hyprctl %{_vpath_builddir}/hyprctl/hyprctl
+
 %files
 %license LICENSE LICENSE-udis86
 %{_bindir}/Hyprland
@@ -236,7 +248,8 @@ install -Dpm0644 macros.hyprland \
 %{_userunitdir}/hyprland-session.target
 %{_mandir}/man1/Hyprland.1*
 %{_mandir}/man1/hyprctl.1*
-%{bash_completions_dir}/hypr*
+%{bash_completions_dir}/hyprctl
+%{bash_completions_dir}/hyprpm
 %{fish_completions_dir}/hypr*.fish
 %{zsh_completions_dir}/_hypr*
 

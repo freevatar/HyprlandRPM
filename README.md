@@ -4,6 +4,7 @@ Credit to https://github.com/solopasha - original packaging comes from his https
 
 This repo has since changed a lot:
 * added update and build tools with automatic dependency graph resolution
+* bash completion
 * package list cut to Hypr-only packages
 * many specs refactored
 

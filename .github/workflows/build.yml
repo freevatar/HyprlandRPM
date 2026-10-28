@@ -7,11 +7,12 @@ on:
       - '**/*.spec'
       - '**/*.patch'
       - '**/*.diff'
+      - '**/*.bash'
       - '**/macros.*'
       - 'scripts/**'
       - 'build-plan.json'
       - 'package-graph.json'
-      - 'hyprland-git/update.py'
+      - 'hyprland-git/*.py'
       - '.copr/**'
       - '.github/workflows/build.yml'
   workflow_dispatch:

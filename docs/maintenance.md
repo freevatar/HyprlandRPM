@@ -167,3 +167,18 @@ CI runs tests and checks the dependency graph, release bumps, RPM specs, and
 shell syntax on Fedora 44. It runs when packaging files,
 tooling, tests, or workflows change. Documentation-only changes skip CI. Package
 compilation runs in COPR.
+
+The `hyprland-git` RPM also checks Bash completion against its unpacked source
+and newly built `hyprctl`, since upstream help contains stale and missing entries.
+To run that check locally, point it at the matching source tree and binary:
+
+```sh
+python3 hyprland-git/check-hyprctl-completion.py \
+  --source-tree /path/to/Hyprland \
+  --completion hyprland-git/hyprctl.bash \
+  --hyprctl /path/to/hyprctl
+```
+
+The check covers built-in commands, flags, and literal arguments. It does not
+start a compositor or execute compositor commands. Hyprsunset is a separate
+server, so its subcommands are checked against Hyprctl's help text.
