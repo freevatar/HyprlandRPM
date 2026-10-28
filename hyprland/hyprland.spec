@@ -1,5 +1,5 @@
-%global upstream_version 0.56.2
-%global hyprland_commit efb50993780079460b0cbed1363e2166a2de1d9f
+%global upstream_version 0.57.0
+%global hyprland_commit 0aa6745f705f2c4b0a5004eb019ef76e5bbdb426
 
 %global lua54_compat 0
 %global lua_min_version 5.5
@@ -12,7 +12,7 @@
 
 Name:           hyprland
 Version:        %{upstream_version}
-Release:        %autorelease -b6
+Release:        %autorelease
 Summary:        Dynamic tiling Wayland compositor that doesn't sacrifice on its looks
 
 # Hyprland: BSD-3-Clause
