@@ -1,5 +1,5 @@
 %global upstream_version 0.57.0
-%global snapshot 3
+%global snapshot 4
 
 %global lua54_compat 0
 %global lua_min_version 5.5
@@ -10,11 +10,11 @@
 %global lua_next_version 5.5
 %endif
 
-%global hyprland_commit 92f3380c3ac4a6fd7df4bfa9e21140a07555026f
+%global hyprland_commit 27bdfef92d25c73b51a1cc0c3defded09e0a0344
 %global hyprland_shortcommit %(c=%{hyprland_commit}; echo ${c:0:7})
-%global hyprland_commits 7981
-%global hyprland_commit_date Thu Oct 29 14:21:58 2026
-%global hyprland_commit_message_b64 Y29uZmlnL3Njcm9sbGluZzogaW1wbGVtZW50IHNjcm9sbGluZyBvZmZzZXQgcmVsYXRlZCBoZWxwZXIgZnVuY3Rpb25zICgjMTY2NDAp
+%global hyprland_commits 7984
+%global hyprland_commit_date Fri Oct 30 08:35:06 2026
+%global hyprland_commit_message_b64 Y29uZmlnL2x1YTogZml4IHZhbGlkYXRvciBmb3IgY3VzdG9tIGFjY2VsIHByb2ZpbGVzICgjMTY3MzAp
 
 %global udis86_commit 5336633af70f3917760a6d441ff02d93477b0c86
 %global udis86_shortcommit %(c=%{udis86_commit}; echo ${c:0:7})
