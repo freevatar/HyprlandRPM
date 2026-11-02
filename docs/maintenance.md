@@ -2,6 +2,53 @@
 
 Run these commands from the repository root.
 
+## Update everything: short procedure
+
+1. Start with a clean checkout of `master`, then run `git pull --ff-only`.
+2. Refresh Hyprland first, while its managed specs are still clean:
+
+   ```sh
+   python3 hyprland-git/update.py --dry-run
+   python3 hyprland-git/update.py
+   ```
+
+3. Preview and apply all eligible upstream releases:
+
+   ```sh
+   python3 scripts/check-upstream-versions.py --allow-tags --refresh --bump --dry-run
+   python3 scripts/check-upstream-versions.py --allow-tags --bump
+   ```
+
+   Leave `HELD` packages alone until their consumers support the new version.
+   Review the release changes and `git diff`: remove backports already included
+   upstream, verify remaining patches, and update build requirements as needed.
+   The checker follows releases and tags; review Aquamarine's post-release Git
+   commits separately and update its pinned upstream patches when needed.
+   If package dependencies changed, run `python3 scripts/rebuild.py graph --refresh`.
+
+4. Prepare dependent release bumps and validate the whole update:
+
+   ```sh
+   python3 scripts/rebuild.py plan
+   python3 scripts/rebuild.py apply
+   bash scripts/check.sh
+   git diff --check
+   git diff
+   ```
+
+5. Stage the reviewed package files, `build-plan.json`, and any changed
+   `package-graph.json`, then commit and push:
+
+   ```sh
+   git add -u
+   git commit -m "Update upstream packages and dependent rebuilds"
+   git push origin master
+   ```
+
+   Add any new patches explicitly before committing. The **Build RPMs** workflow
+   starts automatically and runs builds in dependency order; you can leave it
+   running without keeping a local build command open.
+
 ## Update packages
 
 Check for upstream releases before editing versions:

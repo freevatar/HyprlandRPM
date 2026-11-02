@@ -1,6 +1,6 @@
 Name:           hyprgraphics
-Version:        0.5.1
-Release:        %autorelease -b7
+Version:        0.6.0
+Release:        %autorelease
 Summary:        Hyprland graphics / resource utilities
 
 License:        BSD-3-Clause
@@ -45,15 +45,13 @@ Requires:       %{name}%{?_isa} = %{version}-%{release}
 Requires:       pkgconfig(cairo)
 Requires:       pkgconfig(glesv2)
 Requires:       pkgconfig(hyprutils)
+Requires:       pkgconfig(pangocairo)
 
 %description    devel
 Development files for %{name}.
 
 %prep
 %autosetup -p1
-
-# Public headers expose Cairo, GLES, and hyprutils types.
-sed -i '/^Version:/a Requires: cairo, glesv2, hyprutils' hyprgraphics.pc.in
 
 %build
 %cmake -DCMAKE_BUILD_TYPE=Release
