@@ -1,5 +1,5 @@
 %global upstream_version 0.57.1
-%global snapshot 4
+%global snapshot 5
 
 %global lua54_compat 0
 %global lua_min_version 5.5
@@ -10,18 +10,18 @@
 %global lua_next_version 5.5
 %endif
 
-%global hyprland_commit 64bde62ee467d7fe56d15431e91eaa4bb47ddd14
+%global hyprland_commit f389f008228d51fa48bdd69a4c9e2b91f24bb2da
 %global hyprland_shortcommit %(c=%{hyprland_commit}; echo ${c:0:7})
-%global hyprland_commits 8006
-%global hyprland_commit_date Wed Nov 04 13:05:43 2026
-%global hyprland_commit_message_b64 c3RhcnQ6IGhhbmRsZSBhbmQgcmVwb3J0IHNpZ25hbC10ZXJtaW5hdGVkIGNoaWxkcmVu
+%global hyprland_commits 8007
+%global hyprland_commit_date Thu Nov 05 04:57:29 2026
+%global hyprland_commit_message_b64 Y29uZmlnL2x1YTogZml4IGFjY2Vzc2luZyBhbiBleHBpcmVkIHdpbmRvdyByZWYgZnJvbSBhIGx1YSBvYmplY3QgKCMxNjg1Myk=
 
 %global udis86_commit 5336633af70f3917760a6d441ff02d93477b0c86
 %global udis86_shortcommit %(c=%{udis86_commit}; echo ${c:0:7})
 
 Name:           hyprland-git
 Version:        %{upstream_version}^%{snapshot}.git%{hyprland_shortcommit}
-Release:        %autorelease -b2
+Release:        %autorelease
 Summary:        Dynamic tiling Wayland compositor that doesn't sacrifice on its looks
 
 # Hyprland: BSD-3-Clause
