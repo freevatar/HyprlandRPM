@@ -21,7 +21,7 @@
 
 Name:           hyprland-git
 Version:        %{upstream_version}^%{snapshot}.git%{hyprland_shortcommit}
-Release:        %autorelease
+Release:        %autorelease -b2
 Summary:        Dynamic tiling Wayland compositor that doesn't sacrifice on its looks
 
 # Hyprland: BSD-3-Clause
@@ -40,6 +40,8 @@ Source4:        hyprctl.bash
 Source5:        check-hyprctl-completion.py
 Patch0:         escape-version-metadata.patch
 Patch1:         lua54-hyprpm.patch
+# https://github.com/hyprwm/Hyprland/pull/16740
+Patch2:         fullscreen-layer-visibility.patch
 
 # Build tools
 BuildRequires:  cmake >= 3.30
@@ -151,6 +153,7 @@ building software and plugins against %{name}.
 %prep
 %autosetup -n Hyprland-%{hyprland_commit} -N
 %patch -P 0 -p1
+%patch -P 2 -p1
 
 # Replace the empty Git submodule directory with the exact pinned source.
 rm -rf subprojects/udis86
