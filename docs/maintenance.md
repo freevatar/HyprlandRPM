@@ -91,6 +91,7 @@ The checker uses RPM to expand macros and compares upstream versions without
 RPM release numbers. It reads the same package inventory as the build tools,
 excluding ignored build output. It defaults to this repository and Fedora 44;
 use `DIR` and `--target <chroot>` to override them, or `--debug` for diagnostics.
+Use `--target fedora-45-x86_64` to check Fedora 45's dependency constraints.
 Specs are only edited with `--bump`. Exit code `0` means every eligible check
 succeeded, even if updates were found or held; `1` means a failed or incomplete
 scan or a version bump that could not be applied.
@@ -129,8 +130,9 @@ tracked as packages change.
 
 `plan` and `apply` compare your working tree with `HEAD`. Use `--base <commit>` if
 you have already committed the version changes. `check` validates the graph and
-recorded plan. The default target is Fedora 44 x86_64; repeat
-`--target <chroot>` to explicitly choose other Fedora targets.
+recorded plan. The default targets are Fedora 44 and Fedora 45 x86_64; repeat
+`--target <chroot>` to explicitly choose a different set of Fedora targets.
+Explicit targets replace the defaults, so include every target you intend to build.
 
 Dependencies are stored once in `package-graph.json`. View the saved build order with:
 
@@ -190,6 +192,24 @@ fails when they finish. Reruns reuse successful builds and retry failed ones.
 For coordinated library updates, enable manual repository publication in COPR
 and publish after all affected packages succeed.
 
+### Fedora 45 rollout
+
+Keep Fedora 44 enabled while Fedora 45 is being tested. The default planner and
+scheduled updater prepare both `fedora-44-x86_64` and `fedora-45-x86_64`.
+Before enabling a new target in COPR, run `python3 scripts/rebuild.py apply`,
+validate, and commit and push the resulting `build-plan.json`. Enabling a target
+that is absent from the committed plan causes builds to stop before submission.
+
+After the plan is published, enable `fedora-45-x86_64` in the COPR project and
+start the **Build RPMs** workflow. It builds every missing package for the new
+target in dependency order and reuses successful builds for existing targets.
+Adding a target alone does not require package release bumps.
+
+Test installation and an upgrade from Fedora 44, stable and snapshot Hyprland
+separately, `hyprpm` plugin builds, screen sharing, XWayland, and
+lock/suspend/resume before retiring Fedora 44. The Hyprland specs keep their Lua
+5.4 compatibility on Fedora 44 and use Lua 5.5 on Fedora 45.
+
 ## Checks
 
 The tooling needs Fedora RPM tools and macros, Git, `python3-rpm`, and
@@ -211,7 +231,11 @@ submit builds. The full suite needs Fedora RPM tools and macros, Git, CMake 3.30
 or newer, a C++ compiler, `patch`, and `pkg-config`.
 
 CI runs tests and checks the dependency graph, release bumps, RPM specs, and
-shell syntax on Fedora 44. It runs when packaging files,
+shell syntax in both Fedora 44 and Fedora 45 containers. The shared check script
+expands spec scriptlets for both targets even when run locally on only one
+Fedora release. The build and update workflows run their planning tools on
+Fedora 44; RPM build targets come from COPR's enabled targets.
+CI runs when packaging files,
 tooling, tests, or workflows change. Documentation-only changes skip CI. Package
 compilation runs in COPR.
 

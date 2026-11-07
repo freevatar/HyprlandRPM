@@ -21,6 +21,7 @@ class CheckScriptTests(unittest.TestCase):
         for directory in ("scripts", "hyprland-git", "sample", "bin"):
             (self.root / directory).mkdir()
         shutil.copy(ROOT / "scripts/check.sh", self.root / "scripts/check.sh")
+        shutil.copy(ROOT / "scripts/package_graph.py", self.root / "scripts/package_graph.py")
         shutil.copy(ROOT / "hyprland-git/update.py", self.root / "hyprland-git/update.py")
         (self.root / "sample/sample.spec").write_text("fixture\n")
         self.log = self.root / "commands.log"
@@ -37,6 +38,14 @@ exec {shlex.quote(sys.executable)} "$@"
 """)
         self.executable("rpmspec", """#!/bin/sh
 printf 'rpmspec %s\\n' "$*" >> "$CHECK_LOG"
+case "$*" in
+    *'fedora 45'*)
+        if [ "${F45_INVALID_SHELL:-0}" = 1 ]; then
+            printf '%%prep\\nif true; then\\n'
+            exit 0
+        fi
+        ;;
+esac
 printf '%s' "$EXPANDED_SPEC"
 exit "$RPMSPEC_EXIT"
 """)
@@ -80,7 +89,16 @@ exit "$RPMSPEC_EXIT"
     def test_valid_expanded_spec_passes(self):
         result = self.run_check()
         self.assertEqual(result.returncode, 0, result.stderr)
-        self.assertIn("Validated sample/sample.spec", result.stdout)
+        for target in ("fedora-44-x86_64", "fedora-45-x86_64"):
+            self.assertIn(f"Validated sample/sample.spec ({target})", result.stdout)
+
+    def test_invalid_shell_on_fedora45_fails_after_fedora44_passes(self):
+        self.env["F45_INVALID_SHELL"] = "1"
+        result = self.run_check()
+        self.assertNotEqual(result.returncode, 0)
+        self.assertIn("Validated sample/sample.spec (fedora-44-x86_64)", result.stdout)
+        self.assertNotIn("Validated sample/sample.spec (fedora-45-x86_64)", result.stdout)
+        self.assertIn("invalid %prep shell syntax", result.stderr)
 
 
 if __name__ == "__main__":

@@ -39,9 +39,14 @@ permissions:
 
 jobs:
   check:
+    name: Check packaging on Fedora ${{ matrix.fedora }}
     runs-on: ubuntu-latest
+    strategy:
+      fail-fast: false
+      matrix:
+        fedora: [44, 45]
     container:
-      image: registry.fedoraproject.org/fedora-minimal:44
+      image: registry.fedoraproject.org/fedora-minimal:${{ matrix.fedora }}
     defaults:
       run:
         shell: bash

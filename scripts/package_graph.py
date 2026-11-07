@@ -12,7 +12,7 @@ import tempfile
 from collections.abc import Iterable
 
 
-DEFAULT_TARGETS = ("fedora-44-x86_64",)
+DEFAULT_TARGETS = ("fedora-44-x86_64", "fedora-45-x86_64")
 GRAPH_FILE = Path("package-graph.json")
 REFRESH_COMMAND = "python3 scripts/rebuild.py graph --refresh"
 

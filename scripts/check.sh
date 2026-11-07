@@ -20,14 +20,17 @@ import runpy
 import subprocess
 from pathlib import Path
 
+from scripts.package_graph import DEFAULT_TARGETS, rpm_arguments
+
 updater = runpy.run_path("hyprland-git/update.py")
 for path in sorted(Path(".").glob("*/*.spec")):
-    expanded = subprocess.run(
-        ["rpmspec", "-P", str(path)],
-        check=True,
-        stdout=subprocess.PIPE,
-        text=True,
-    ).stdout
-    updater["validate_shell_scriptlets"](path, expanded)
-    print(f"Validated {path}", flush=True)
+    for target in DEFAULT_TARGETS:
+        expanded = subprocess.run(
+            rpm_arguments(target) + ["-P", str(path)],
+            check=True,
+            stdout=subprocess.PIPE,
+            text=True,
+        ).stdout
+        updater["validate_shell_scriptlets"](path, expanded)
+        print(f"Validated {path} ({target})", flush=True)
 PY

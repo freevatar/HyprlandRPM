@@ -289,6 +289,39 @@ class PlannerTests(unittest.TestCase):
         with self.assertRaisesRegex(PlanError, "changed since apply"):
             validate_preparation(self.root)
 
+    def test_default_plan_adds_fedora45_without_bumping_releases(self):
+        library = self.spec("library")
+        app = self.spec("app", requires=("pkgconfig(library)",))
+        self.commit()
+        self.prepare().apply()
+        self.commit()
+        original_specs = {path: path.read_bytes() for path in (library, app)}
+        manifest = self.root / "build-plan.json"
+        original_record = json.loads(manifest.read_text())
+        targets = (TARGET, "fedora-45-x86_64")
+        graphs = [build_graph(self.root, target) for target in targets]
+        with self.assertRaisesRegex(PlanError, "enabled build targets were not prepared"):
+            validate_preparation(self.root, graphs)
+
+        result = plan(self.root)
+        self.assertEqual(tuple(graph.target for graph in result.graphs), targets)
+        self.assertFalse(result.affected)
+        self.assertFalse(result.updates)
+        result.apply()
+        record = json.loads(manifest.read_text())
+        self.assertEqual(record["targets"], list(targets))
+        self.assertNotEqual(record["inputs_sha256"], original_record["inputs_sha256"])
+        self.assertEqual({path: path.read_bytes() for path in original_specs}, original_specs)
+        validate_preparation(self.root, graphs)
+
+        # The next scheduled update must keep both targets in the plan.
+        self.commit()
+        self.bump_version(library)
+        plan(self.root).apply()
+        self.assertEqual(json.loads(manifest.read_text())["targets"], list(targets))
+        self.assertIn("Release: %autorelease -b2", app.read_text())
+        validate_preparation(self.root, [build_graph(self.root, target) for target in targets])
+
     def test_new_batch_bumps_consumers_again_after_previous_batch_is_committed(self):
         library = self.spec("library")
         self.spec("app", requires=("pkgconfig(library)",))
