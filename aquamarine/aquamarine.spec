@@ -1,6 +1,6 @@
 Name:           aquamarine
 Version:        0.16.0
-Release:        %autorelease -b3
+Release:        %autorelease -b4
 Summary:        Lightweight Linux rendering backend library
 
 # Aquamarine is BSD-3-Clause; generated Wayland protocol bindings are MIT.
@@ -8,7 +8,7 @@ License:        BSD-3-Clause AND MIT
 URL:            https://github.com/hyprwm/aquamarine
 Source:         %{url}/archive/v%{version}/%{name}-%{version}.tar.gz
 
-# All upstream commits after v0.16.0 through 801f25ffc581ef6796e9b0721264d50ebfdb23b1.
+# All upstream commits after v0.16.0 through 9887f39574f2afeae3aeb6687db6cd0c030ccf94.
 # internal: fix multi-GPU buffer fallbacks and invalid modifier comparisons
 Patch0:         %{url}/commit/ad4484335fc327a6cf010f455ae258c397861ee0.patch
 # drm: synchronously recheck CRTCs on connector enable state change
@@ -17,6 +17,10 @@ Patch1:         %{url}/commit/42c396067a5a59491a45138528d49238dd6e394e.patch
 Patch2:         %{url}/commit/612609446794933ba138bb7f86cb6de2ea4a396f.patch
 # drm: avoid invalid all-zero HDR metadata for SDR displays
 Patch3:         %{url}/commit/801f25ffc581ef6796e9b0721264d50ebfdb23b1.patch
+# gbm: fix buffer allocation, modifier handling, and renderer state caching
+Patch4:         %{url}/commit/a5cdfb3f53f3b9422cff7548649e83cbeae7cb37.patch
+# DRM: allow output tests while an asynchronous commit is pending
+Patch5:         %{url}/commit/9887f39574f2afeae3aeb6687db6cd0c030ccf94.patch
 
 # https://fedoraproject.org/wiki/Changes/EncourageI686LeafRemoval
 ExcludeArch:    %{ix86}
