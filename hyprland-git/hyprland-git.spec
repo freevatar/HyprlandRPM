@@ -1,5 +1,5 @@
 %global upstream_version 0.57.1
-%global snapshot 6
+%global snapshot 7
 
 %global lua54_compat 0
 %global lua_min_version 5.5
@@ -10,18 +10,18 @@
 %global lua_next_version 5.5
 %endif
 
-%global hyprland_commit ab6141897d57e609e24c571a762c30c963e0885a
+%global hyprland_commit 2d2669a1b75094ab43c1d631e710c27a1accc7fc
 %global hyprland_shortcommit %(c=%{hyprland_commit}; echo ${c:0:7})
-%global hyprland_commits 8010
-%global hyprland_commit_date Fri Nov 06 11:58:13 2026
-%global hyprland_commit_message_b64 cmVuZGVyOiByZW1vdmUgdW5uZWNlc3NhcnkgJ3RoaXMnIGZyb20gbGFtYmRhIGNhcHR1cmVzICgjMTY4NTIp
+%global hyprland_commits 8017
+%global hyprland_commit_date Sun Nov 08 11:48:14 2026
+%global hyprland_commit_message_b64 c2Nyb2xsaW5nL2Z1bGxzY3JlZW46IGZpeCBvbmx5IGludGVybmFsIHVuLUZTIG5vdCByZXN0b3JpbmcgcHJldiBjb2wgd2lkdGggKCMxNjg5Nik=
 
 %global udis86_commit 5336633af70f3917760a6d441ff02d93477b0c86
 %global udis86_shortcommit %(c=%{udis86_commit}; echo ${c:0:7})
 
 Name:           hyprland-git
 Version:        %{upstream_version}^%{snapshot}.git%{hyprland_shortcommit}
-Release:        %autorelease -b2
+Release:        %autorelease
 Summary:        Dynamic tiling Wayland compositor that doesn't sacrifice on its looks
 
 # Hyprland: BSD-3-Clause
@@ -40,8 +40,6 @@ Source4:        hyprctl.bash
 Source5:        check-hyprctl-completion.py
 Patch0:         escape-version-metadata.patch
 Patch1:         lua54-hyprpm.patch
-# https://github.com/hyprwm/Hyprland/pull/16740
-Patch2:         fullscreen-layer-visibility.patch
 
 # Build tools
 BuildRequires:  cmake >= 3.30
@@ -153,7 +151,6 @@ building software and plugins against %{name}.
 %prep
 %autosetup -n Hyprland-%{hyprland_commit} -N
 %patch -P 0 -p1
-%patch -P 2 -p1
 
 # Replace the empty Git submodule directory with the exact pinned source.
 rm -rf subprojects/udis86

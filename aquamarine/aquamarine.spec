@@ -1,6 +1,6 @@
 Name:           aquamarine
 Version:        0.16.0
-Release:        %autorelease -b2
+Release:        %autorelease -b3
 Summary:        Lightweight Linux rendering backend library
 
 # Aquamarine is BSD-3-Clause; generated Wayland protocol bindings are MIT.
@@ -8,9 +8,15 @@ License:        BSD-3-Clause AND MIT
 URL:            https://github.com/hyprwm/aquamarine
 Source:         %{url}/archive/v%{version}/%{name}-%{version}.tar.gz
 
-# All upstream commits after v0.16.0 through ad4484335fc327a6cf010f455ae258c397861ee0.
+# All upstream commits after v0.16.0 through 801f25ffc581ef6796e9b0721264d50ebfdb23b1.
 # internal: fix multi-GPU buffer fallbacks and invalid modifier comparisons
 Patch0:         %{url}/commit/ad4484335fc327a6cf010f455ae258c397861ee0.patch
+# drm: synchronously recheck CRTCs on connector enable state change
+Patch1:         %{url}/commit/42c396067a5a59491a45138528d49238dd6e394e.patch
+# DRM: fix typo in EDID chromaticity log
+Patch2:         %{url}/commit/612609446794933ba138bb7f86cb6de2ea4a396f.patch
+# drm: avoid invalid all-zero HDR metadata for SDR displays
+Patch3:         %{url}/commit/801f25ffc581ef6796e9b0721264d50ebfdb23b1.patch
 
 # https://fedoraproject.org/wiki/Changes/EncourageI686LeafRemoval
 ExcludeArch:    %{ix86}
