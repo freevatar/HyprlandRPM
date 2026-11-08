@@ -21,7 +21,7 @@
 
 Name:           hyprland-git
 Version:        %{upstream_version}^%{snapshot}.git%{hyprland_shortcommit}
-Release:        %autorelease
+Release:        %autorelease -b2
 Summary:        Dynamic tiling Wayland compositor that doesn't sacrifice on its looks
 
 # Hyprland: BSD-3-Clause
@@ -103,7 +103,7 @@ BuildRequires:  pkgconfig(lua) < %{lua_next_version}
 # canihavesomecoffee fork bundled by Hyprland.
 Provides:       bundled(udis86) = 1.7.2^1.%{udis86_shortcommit}
 
-# Satisfy Hyprland dependencies while keeping both variants mutually exclusive.
+# Satisfy Hyprland dependencies and prevent file conflicts with other providers.
 Provides:       hyprland = %{version}-%{release}
 Provides:       hyprland%{?_isa} = %{version}-%{release}
 Conflicts:      hyprland

@@ -144,16 +144,14 @@ class CheckerTests(unittest.TestCase):
         self.assertEqual(request.call_count, 1)
         self.assert_summary(output, current=1, update=0, error=0)
 
-    def test_hyprland_names_are_visibly_skipped(self):
-        self.spec("stable-source", name="hyprland")
+    def test_hyprland_snapshot_is_visibly_skipped(self):
         self.spec("snapshot-source", name="hyprland-git")
         self.spec()
         code, output, _, request = self.run_checker()
         self.assertEqual(code, 0)
         self.assertEqual(request.call_count, 1)
-        self.assertIn("SKIP", self.package_row(output, "hyprland"))
         self.assertIn("SKIP", self.package_row(output, "hyprland-git"))
-        self.assert_summary(output, current=1, skip=2)
+        self.assert_summary(output, current=1, skip=1)
 
     def test_missing_version_and_rpm_parse_failure_return_error(self):
         path = self.spec()
@@ -218,7 +216,7 @@ class CheckerTests(unittest.TestCase):
         self.spec("current-package", version="10.0")
         self.spec("ahead-package", version="11.0")
         self.spec("error-package")
-        self.spec("managed-source", name="hyprland")
+        self.spec("managed-source", name="hyprland-git")
 
         def upstream(owner, repo, **options):
             if repo == "error-package":
@@ -229,14 +227,14 @@ class CheckerTests(unittest.TestCase):
         self.assertEqual(code, 1)
         self.assertIn("UPDATE", self.package_row(output, "update-package"))
         self.assertIn("ERROR", self.package_row(output, "error-package"))
-        for hidden in ("current-package", "ahead-package", "hyprland"):
+        for hidden in ("current-package", "ahead-package", "hyprland-git"):
             self.assertNotIn(hidden, output)
         self.assert_summary(output, update=1, current=1, ahead=1, error=1, blocked=0, skip=1)
 
     def constrained_glaze(self, requirements="glaze-static >= 7\nBuildRequires: glaze-static < 8"):
         self.spec("glaze", version="7.4.0",
                   metadata="Provides: glaze-static = %{version}-%{release}\n")
-        return self.spec("hyprland", metadata=f"BuildRequires: {requirements}\n")
+        return self.spec("hyprland-git", metadata=f"BuildRequires: {requirements}\n")
 
     def test_incompatible_update_is_held_and_visible_with_updates_only(self):
         self.constrained_glaze()
@@ -247,7 +245,7 @@ class CheckerTests(unittest.TestCase):
         request.assert_called_once()
         self.assertIn("HELD", self.package_row(output, "glaze"))
         self.assertIn("v8.4.0", self.package_row(output, "glaze"))
-        self.assertIn("hyprland", output)
+        self.assertIn("hyprland-git", output)
         self.assertRegex(output, r"glaze-static\s*<\s*8")
         self.assertIn("https://github.com/example/glaze/releases/tag/v8.4.0", output)
         self.assert_summary(output, held=1, update=0, error=0, skip=1)
@@ -613,11 +611,11 @@ class CheckerTests(unittest.TestCase):
         request.assert_not_called()
 
     def test_only_managed_packages_are_visible_but_not_an_eligible_scan(self):
-        self.spec("managed-source", name="hyprland")
+        self.spec("managed-source", name="hyprland-git")
         code, output, _, request = self.run_checker()
         self.assertEqual(code, 1)
         request.assert_not_called()
-        self.assertIn("SKIP", self.package_row(output, "hyprland"))
+        self.assertIn("SKIP", self.package_row(output, "hyprland-git"))
         self.assert_summary(output, skip=1, current=0, error=0)
 
     def test_checker_never_edits_specs(self):
@@ -651,7 +649,7 @@ class CheckerTests(unittest.TestCase):
         self.assertIn("HELD", self.package_row(output, "glaze"))
         self.assertIn("AHEAD", self.package_row(output, "ahead-package"))
         self.assertIn("CURRENT", self.package_row(output, "current-package"))
-        self.assertIn("SKIP", self.package_row(output, "hyprland"))
+        self.assertIn("SKIP", self.package_row(output, "hyprland-git"))
 
     def test_bump_selected_rpm_names_checks_only_selected_packages(self):
         selected = self.spec("source-directory", name="selected-package")

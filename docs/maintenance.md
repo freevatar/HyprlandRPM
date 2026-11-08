@@ -5,7 +5,7 @@ Run these commands from the repository root.
 ## Update everything: short procedure
 
 1. Start with a clean checkout of `master`, then run `git pull --ff-only`.
-2. Refresh Hyprland first, while its managed specs are still clean:
+2. Refresh Hyprland first, while its snapshot spec is still clean:
 
    ```sh
    python3 hyprland-git/update.py --dry-run
@@ -62,8 +62,8 @@ and release links. `HELD` means a newer version falls outside the local specs'
 `BuildRequires` constraints. It checks declared constraints, which cannot
 guarantee a successful build. Omit `--updates-only` to see every package. Held
 updates and errors stay visible in either view, and the summary includes all
-results. Hyprland's stable and snapshot specs appear as skipped because their
-metadata has a separate updater.
+results. The Hyprland snapshot spec appears as skipped because its metadata has
+a separate updater.
 
 It uses stable GitHub releases by default. Add `--allow-tags` for repositories
 without a stable release; it selects the highest numeric tag, excludes
@@ -155,17 +155,17 @@ Use `graph --check` to check just the saved graph.
 The planner uses your local specs and does not check upstream. Dependency
 rebuilds keep the Hyprland commit already pinned in its spec.
 
-To refresh stable and snapshot Hyprland metadata, start with those specs clean:
+To refresh Hyprland snapshot metadata, start with its spec clean:
 
 ```sh
 python3 hyprland-git/update.py --dry-run
 python3 hyprland-git/update.py
 ```
 
-The first command previews and restores the changes. The second edits the specs;
+The first command previews and restores the changes. The second edits the spec;
 then run the planner and commit as above. The scheduled workflow does this every
 six hours, validates and commits the changes, and runs the builds directly.
-New snapshots and stable versions start at RPM release `1`.
+New snapshots start at RPM release `1`.
 If `master` changes while the updater prepares a commit, it starts over from
 the new commit and regenerates the plan, with up to three attempts.
 
@@ -205,10 +205,10 @@ start the **Build RPMs** workflow. It builds every missing package for the new
 target in dependency order and reuses successful builds for existing targets.
 Adding a target alone does not require package release bumps.
 
-Test installation and an upgrade from Fedora 44, stable and snapshot Hyprland
-separately, `hyprpm` plugin builds, screen sharing, XWayland, and
-lock/suspend/resume before retiring Fedora 44. The Hyprland specs keep their Lua
-5.4 compatibility on Fedora 44 and use Lua 5.5 on Fedora 45.
+Test installation and an upgrade from Fedora 44 with `hyprland-git`, `hyprpm`
+plugin builds, screen sharing, XWayland, and lock/suspend/resume before retiring
+Fedora 44. The Hyprland snapshot spec keeps its Lua 5.4 compatibility on Fedora
+44 and uses Lua 5.5 on Fedora 45.
 
 ## Checks
 

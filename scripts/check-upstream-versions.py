@@ -24,7 +24,7 @@ from spec_versions import VersionEditError, apply_version_edits, prepare_version
 
 LOGGER = logging.getLogger(__name__)
 REPO_ROOT = Path(__file__).resolve().parents[1]
-MANAGED_PACKAGES = {"hyprland", "hyprland-git"}
+MANAGED_PACKAGES = {"hyprland-git"}
 STATUSES = ("UPDATE", "HELD", "CURRENT", "AHEAD", "ERROR", "BLOCKED", "SKIP")
 CACHE_PATH = Path(".cache/upstream-versions.json")
 

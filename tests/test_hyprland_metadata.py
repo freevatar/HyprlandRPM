@@ -10,6 +10,7 @@ import tempfile
 import unittest
 
 ROOT = Path(__file__).resolve().parents[1]
+PACKAGE = ROOT / "hyprland-git"
 TOOLS = ("cmake", "g++", "patch", "rpmspec")
 
 # Preserve the upstream configure_file boundary so the shipped patch is exercised.
@@ -31,16 +32,15 @@ configure_file(
 
 @unittest.skipUnless(all(shutil.which(tool) for tool in TOOLS), "requires RPM/CMake/C++ tools")
 class VersionMetadataTests(unittest.TestCase):
-    def generated_metadata(self, package, title):
-        spec_path = ROOT / package / f"{package}.spec"
+    def generated_metadata(self, title):
+        spec_path = PACKAGE / "hyprland-git.spec"
         text = spec_path.read_text()
-        if package == "hyprland-git":
-            encoded = base64.b64encode(title.encode()).decode()
-            text = re.sub(
-                r"(?m)^%global hyprland_commit_message_b64 .*$",
-                f"%global hyprland_commit_message_b64 {encoded}",
-                text,
-            )
+        encoded = base64.b64encode(title.encode()).decode()
+        text = re.sub(
+            r"(?m)^%global hyprland_commit_message_b64 .*$",
+            f"%global hyprland_commit_message_b64 {encoded}",
+            text,
+        )
 
         with tempfile.TemporaryDirectory() as directory:
             directory = Path(directory)
@@ -53,7 +53,7 @@ class VersionMetadataTests(unittest.TestCase):
             (directory / "package.spec").write_text(text)
             subprocess.run(
                 ["patch", "--batch", "--fuzz=0", "-p1"],
-                input=(ROOT / package / "escape-version-metadata.patch").read_text(),
+                input=(PACKAGE / "escape-version-metadata.patch").read_text(),
                 cwd=directory, text=True, capture_output=True, check=True,
             )
             expanded = subprocess.run(
@@ -61,10 +61,7 @@ class VersionMetadataTests(unittest.TestCase):
                 text=True, capture_output=True, check=True,
             ).stdout
             build = expanded.split("%build\n", 1)[1]
-            marker = (
-                "export GIT_COMMIT_MESSAGE\n" if package == "hyprland-git"
-                else "export GIT_DIRTY='clean'\n"
-            )
+            marker = "export GIT_COMMIT_MESSAGE\n"
             # Run the real RPM-expanded metadata exports without running its build.
             self.assertIn(marker, build)
             exports = build.split(marker, 1)[0] + marker
@@ -96,15 +93,15 @@ class VersionMetadataTests(unittest.TestCase):
             "trailing slash\\",
         ):
             with self.subTest(title=title):
-                commit, actual_title = self.generated_metadata("hyprland-git", title)
+                commit, actual_title = self.generated_metadata(title)
                 self.assertRegex(commit, r"^[0-9a-f]{40}$")
                 self.assertEqual(actual_title, title)
 
-    def test_stable_build_exports_the_pinned_commit(self):
-        commit, _ = self.generated_metadata("hyprland", "")
+    def test_snapshot_build_exports_the_pinned_commit(self):
+        commit, _ = self.generated_metadata("Snapshot metadata")
         expected = re.search(
             r"(?m)^%global hyprland_commit ([0-9a-f]{40})$",
-            (ROOT / "hyprland/hyprland.spec").read_text(),
+            (PACKAGE / "hyprland-git.spec").read_text(),
         )
         self.assertIsNotNone(expected)
         self.assertEqual(commit, expected.group(1))

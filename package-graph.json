@@ -11,17 +11,6 @@
     "hyprgraphics": [
       "hyprutils"
     ],
-    "hyprland": [
-      "aquamarine",
-      "glaze",
-      "hyprcursor",
-      "hyprgraphics",
-      "hyprland-protocols",
-      "hyprlang",
-      "hyprutils",
-      "hyprwayland-scanner",
-      "hyprwire"
-    ],
     "hyprland-git": [
       "aquamarine",
       "glaze",

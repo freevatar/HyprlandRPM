@@ -1,7 +1,7 @@
 #!/usr/bin/env python3
-"""Update stable and snapshot Hyprland source metadata without committing or building.
+"""Update Hyprland snapshot source metadata without committing or building.
 
-Changes are validated together; a dry run displays them and restores both specs.
+Changes are validated before finishing; a dry run restores the snapshot spec.
 """
 
 from __future__ import annotations
@@ -72,7 +72,6 @@ class UpdateError(RuntimeError):
 @dataclass(frozen=True, slots=True)
 class Config:
     git_spec: Path
-    release_spec: Path
     dry_run: bool
     github_token: str | None = field(default=None, repr=False)
 
@@ -335,7 +334,7 @@ def git_diff_is_quiet(paths: Sequence[Path], *, cached: bool = False) -> bool:
 def parse_arguments() -> Config:
     root = Path(__file__).resolve().parents[1]
     parser = argparse.ArgumentParser(
-        description="Update stable and snapshot Hyprland source metadata."
+        description="Update Hyprland snapshot source metadata."
     )
     parser.add_argument(
         "--git-spec", type=Path,
@@ -343,18 +342,12 @@ def parse_arguments() -> Config:
         help="snapshot spec path (default: this repository's snapshot spec)",
     )
     parser.add_argument(
-        "--release-spec", type=Path,
-        default=root / "hyprland/hyprland.spec",
-        help="stable spec path (default: this repository's stable spec)",
-    )
-    parser.add_argument(
         "--dry-run", action="store_true",
-        help="validate and show changes, then restore both specs",
+        help="validate and show changes, then restore the snapshot spec",
     )
     arguments = parser.parse_args()
     return Config(
         git_spec=arguments.git_spec,
-        release_spec=arguments.release_spec,
         dry_run=arguments.dry_run,
         github_token=os.environ.get("GITHUB_TOKEN") or None,
     )
@@ -481,15 +474,6 @@ class GitHubClient:
         timestamp = _expect_string(committer.get("date"), "main commit date")
         message = _expect_text(commit.get("message"), "main commit message")
         return sha, timestamp, normalize_commit_title(message)
-
-    def release_commit(self, version: str) -> str:
-        # The commits endpoint peels both annotated and lightweight tags.
-        payload, _ = self.get_json(
-            f"/repos/{GITHUB_REPOSITORY}/commits/v{version}",
-            label=f"resolving Hyprland release v{version}",
-        )
-        commit = _expect_mapping(payload, "release commit")
-        return _expect_sha(commit.get("sha"), "release commit")
 
     def commit_count(self, commit: str) -> int:
         payload, headers = self.get_json(
@@ -739,12 +723,9 @@ def finish_dry_run(
 def update(config: Config) -> int:
     require_commands(("git", "rpmdev-vercmp", "rpmspec", "sh"))
     git_spec = SpecDocument.load(config.git_spec)
-    release_spec = SpecDocument.load(config.release_spec)
-    managed_specs = [git_spec, release_spec]
+    managed_specs = [git_spec]
     managed_paths = [spec.path for spec in managed_specs]
 
-    if config.git_spec.resolve() == config.release_spec.resolve():
-        fail("snapshot and stable spec paths must differ")
     run_git(["ls-files", "--error-unmatch", "--", *managed_paths], capture_output=True)
     if not git_diff_is_quiet(managed_paths):
         fail("managed spec files have uncommitted changes")
@@ -787,18 +768,6 @@ def update(config: Config) -> int:
             fail(f"configured version {old_tag} is newer than latest release {new_tag}")
         case _:
             raise AssertionError(f"unexpected comparison status: {comparison}")
-
-    release_version = release_spec.get_global("upstream_version")
-    if compare_rpm_versions(release_version, new_tag) == 11:
-        fail(f"configured release version {release_version} is newer than latest release {new_tag}")
-    # Stable can lag behind even when the snapshot already uses this release.
-    # Always resolve the tag, including when correcting a stale commit identity.
-    release_spec.update_globals({
-        "upstream_version": new_tag,
-        "hyprland_commit": github.release_commit(new_tag),
-    })
-    if release_version != new_tag:
-        release_spec.reset_release()
 
     if git_spec.changed:
         snapshot_text = git_spec.get_global("snapshot")
