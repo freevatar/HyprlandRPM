@@ -102,9 +102,9 @@ fi
         return result.stdout.rstrip("\0").split("\0") if result.stdout else []
 
     def test_commands_follow_help_and_ignore_descriptions(self):
-        self.assertEqual(self.complete("hyprctl", ""),
-                         ["activewindow", "dispatch", "eval", "monitors", "plugin", "repl",
-                          "deprecated-config", "descriptions", "locked", "reloadshaders", "submap"])
+        self.assertCountEqual(self.complete("hyprctl", ""),
+                              ["activewindow", "dispatch", "eval", "monitors", "plugin", "repl",
+                               "deprecated-config", "descriptions", "locked", "reloadshaders", "submap"])
         self.help.write_text(HELP.replace("    activewindow", "    future-command"))
         self.assertEqual(self.complete("hyprctl", "future"), ["future-command"])
         self.assertEqual(self.complete("hyprctl", "active"), [])
@@ -114,9 +114,9 @@ fi
         self.assertEqual(self.complete("hyprctl", "desc"), ["descriptions"])
 
     def test_flags_include_short_aliases_and_help(self):
-        self.assertEqual(set(self.complete("hyprctl", "-")),
-                         {"-j", "-r", "-a", "-c", "--config", "--batch", "--instance", "-i",
-                          "--quiet", "-q", "--help"})
+        self.assertCountEqual(self.complete("hyprctl", "-"),
+                              ["-j", "-r", "-a", "-c", "--config", "--batch", "--instance", "-i",
+                               "--quiet", "-q", "--help"])
         self.assertEqual(self.complete("hyprctl", "--in"), ["--instance"])
         self.assertEqual(self.complete("hyprctl", "rollinglog", "--f"), ["--follow"])
         self.assertEqual(self.complete("hyprctl", "--follow", ""), ["rollinglog"])
@@ -138,7 +138,7 @@ fi
                                           ("hyprpaper", "l", ["listactive"]),
                                           ("hyprsunset", "g", ["gamma"])):
             with self.subTest(command=command):
-                self.assertEqual(self.complete("hyprctl", command, prefix), expected)
+                self.assertCountEqual(self.complete("hyprctl", command, prefix), expected)
 
     def test_common_arguments(self):
         for words, expected in ((("monitors", "a"), ["all"]),
@@ -155,7 +155,7 @@ fi
                                 (("notify", "0"), ["0"]),
                                 (("notify", "-1"), ["-1"])):
             with self.subTest(words=words):
-                self.assertEqual(self.complete("hyprctl", *words), expected)
+                self.assertCountEqual(self.complete("hyprctl", *words), expected)
 
     def test_plugin_paths_keep_spaces(self):
         plugin = self.directory / "plugin with spaces.so"

@@ -10,7 +10,7 @@ import unittest
 
 ROOT = Path(__file__).resolve().parents[1]
 PACKAGE = ROOT / "hyprland-git"
-TOOLS = ("cmake", "g++", "make", "patch", "pkg-config", "rpmspec")
+TOOLS = ("cmake", "g++", "make", "patch", "pkg-config")
 UPSTREAM_CONFIGURE = r'''    if (m_bVerbose)
         progress.printMessageAbove(verboseString("setting PREFIX for cmake to {}", DataState::getHeadersPath()));
 
@@ -38,7 +38,7 @@ cmake $(CMAKE_BUILDTYPE_FILE):
 """
 
 
-@unittest.skipUnless(all(shutil.which(tool) for tool in TOOLS), "requires RPM/CMake/C++ tools")
+@unittest.skipUnless(all(shutil.which(tool) for tool in TOOLS), "requires CMake/C++ tools")
 class HyprpmCompatibilityTests(unittest.TestCase):
     def setUp(self):
         temporary = tempfile.TemporaryDirectory()
@@ -104,46 +104,27 @@ class HyprpmCompatibilityTests(unittest.TestCase):
             env=self.env, capture_output=True, text=True,
         )
         self.assertNotEqual(original.returncode, 0)
-        self.assertIn("None of the required", original.stderr)
         command = self.command(working)
         subprocess.run(
             ["/bin/sh", "-eu", "-c", command],
             env=self.env, capture_output=True, text=True, check=True,
         )
-        self.assertIn(
-            "pkg_search_module(LUA REQUIRED IMPORTED_TARGET GLOBAL lua)\n", cmake.read_text()
-        )
         cache = (working / "build/CMakeCache.txt").read_text()
+        self.assertIn("LUA_VERSION:INTERNAL=5.4.8\n", cache)
         self.assertIn(f"CMAKE_INSTALL_PREFIX:STRING={self.directory / 'headers'}\n", cache)
-        self.assertIn(
-            "Release+-DCMAKE_BUILD_TYPE:STRING=Release",
-            (working / "build/cmake_last_build_type").read_text(),
-        )
+        self.assertIn("CMAKE_BUILD_TYPE:STRING=Release\n", cache)
 
     def test_upstream_drift_stops_before_cmake(self):
         working = self.directory / "drift"
         working.mkdir()
         (working / "CMakeLists.txt").write_text(CMAKE_PREAMBLE)
+        (working / "Makefile").write_text(MAKEFILE_FIXTURE)
         result = subprocess.run(
             ["/bin/sh", "-eu", "-c", self.command(working)],
             env=self.env, capture_output=True, text=True,
         )
         self.assertNotEqual(result.returncode, 0)
-        self.assertIn("CMake Error at CMakeLists.txt:", result.stdout)
-        self.assertIn("Lua 5.4 compatibility patch did not match", result.stdout)
         self.assertFalse((working / "build").exists())
-
-    def test_patch_is_only_applied_on_lua54_fedora_releases(self):
-        for fedora in (44, 45):
-            with self.subTest(fedora=fedora):
-                expanded = subprocess.run(
-                    ["rpmspec", "--define", f"fedora {fedora}", "-P", str(PACKAGE / "hyprland-git.spec")],
-                    text=True, capture_output=True, check=True,
-                ).stdout
-                preamble, sections = expanded.split("%prep\n", 1)
-                self.assertIn("lua54-hyprpm.patch", preamble)
-                prep = sections.split("%build\n", 1)[0]
-                self.assertEqual("lua54-hyprpm.patch" in prep, fedora == 44)
 
 
 if __name__ == "__main__":

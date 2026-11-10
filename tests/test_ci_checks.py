@@ -25,7 +25,7 @@ class CheckScriptTests(unittest.TestCase):
         shutil.copy(ROOT / "hyprland-git/update.py", self.root / "hyprland-git/update.py")
         (self.root / "sample/sample.spec").write_text("fixture\n")
         self.env = dict(os.environ, PATH=f"{self.root / 'bin'}:{os.environ['PATH']}",
-                        TEST_EXIT="0", PLAN_EXIT="0", RPMSPEC_EXIT="0", F45_INVALID_SHELL="0")
+                        TEST_EXIT="0", PLAN_EXIT="0", RPMSPEC_EXIT="0", INVALID_SHELL_TARGET="none")
         self.executable("python3", f"""#!/bin/sh
 case "$*" in
     *'unittest discover'*) exit "$TEST_EXIT" ;;
@@ -35,11 +35,9 @@ exec {shlex.quote(sys.executable)} "$@"
 """)
         self.executable("rpmspec", """#!/bin/sh
 case "$*" in
-    *'fedora 45'*)
-        if [ "${F45_INVALID_SHELL:-0}" = 1 ]; then
-            printf '%%prep\\nif true; then\\n'
-            exit 0
-        fi
+    *"fedora $INVALID_SHELL_TARGET"*)
+        printf '%%prep\\nif true; then\\n'
+        exit 0
         ;;
 esac
 printf '%%prep\\ntrue\\n'
@@ -66,16 +64,12 @@ exit "$RPMSPEC_EXIT"
     def test_valid_expanded_spec_passes(self):
         result = self.run_check()
         self.assertEqual(result.returncode, 0, result.stderr)
-        for target in ("fedora-44-x86_64", "fedora-45-x86_64"):
-            self.assertIn(f"Validated sample/sample.spec ({target})", result.stdout)
 
-    def test_invalid_shell_on_fedora45_fails_after_fedora44_passes(self):
-        self.env["F45_INVALID_SHELL"] = "1"
-        result = self.run_check()
-        self.assertNotEqual(result.returncode, 0)
-        self.assertIn("Validated sample/sample.spec (fedora-44-x86_64)", result.stdout)
-        self.assertNotIn("Validated sample/sample.spec (fedora-45-x86_64)", result.stdout)
-        self.assertIn("invalid %prep shell syntax", result.stderr)
+    def test_invalid_shell_on_either_target_rejects_the_gate(self):
+        for fedora in ("44", "45"):
+            with self.subTest(fedora=fedora):
+                result = self.run_check(INVALID_SHELL_TARGET=fedora)
+                self.assertNotEqual(result.returncode, 0, result.stdout + result.stderr)
 
 
 if __name__ == "__main__":

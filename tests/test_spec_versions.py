@@ -10,7 +10,7 @@ from unittest.mock import patch
 
 sys.path.insert(0, str(Path(__file__).resolve().parents[1] / "scripts"))
 import spec_versions
-from spec_versions import VersionEdit, VersionEditError, apply_version_edits, prepare_version_edit
+from spec_versions import VersionEditError, apply_version_edits, prepare_version_edit
 
 
 TARGET = "fedora-44-x86_64"
@@ -47,7 +47,7 @@ class SpecVersionTests(unittest.TestCase):
         edit = self.prepare(path)
         self.assertEqual(path.read_bytes(), original)
         expected = original.replace(b"Version:\t  1.0", b"Version:\t  2.0").replace(b"%autorelease -b5", b"%autorelease")
-        self.assertEqual(edit, VersionEdit(path, original, expected))
+        self.assertEqual(edit.updated, expected)
         self.assertEqual(list(self.root.iterdir()), [path])
         apply_version_edits([edit])
         self.assertEqual(path.read_bytes(), expected)

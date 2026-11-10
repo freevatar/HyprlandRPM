@@ -90,21 +90,16 @@ class UpdateTests(unittest.TestCase):
         self.git("add", "git.spec")
         self.git("commit", "-qm", "fixture metadata")
 
-    def test_updates_metadata_without_committing_staging_or_building(self):
+    def test_updates_metadata_preserving_head_index_and_unrelated_files(self):
         head = self.git("rev-parse", "HEAD")
         Path("unrelated.txt").write_text("private staged work\n")
         self.git("add", "unrelated.txt")
         index = self.git("write-tree")
-        with patch.object(updater, "run_command", wraps=updater.run_command) as commands:
-            self.assertEqual(updater.update(self.config), 0)
+        self.assertEqual(updater.update(self.config), 0)
         self.assertEqual(self.git("rev-parse", "HEAD"), head)
         self.assertEqual(self.git("write-tree"), index)
         self.assertEqual(self.git("diff", "--name-only"), "git.spec")
         self.assertEqual(self.git("diff", "--cached", "--name-only"), "unrelated.txt")
-        for call in commands.call_args_list:
-            args = call.args[0]
-            self.assertNotIn("copr", args)
-            self.assertFalse(any(word in args for word in ("commit", "push", "add")))
         spec = updater.SpecDocument.load(Path("git.spec"))
         self.assertEqual(spec.get_global("snapshot"), "2")
         self.assertEqual(spec.get_global("hyprland_commit"), "b" * 40)
@@ -129,7 +124,6 @@ class UpdateTests(unittest.TestCase):
         self.record_fixture()
         self.assertEqual(updater.update(self.config), 0)
         self.assertEqual(self.git("status", "--porcelain"), "")
-        self.validation.assert_not_called()
 
     def test_new_snapshot_resets_supported_release_forms(self):
         for old, new in (

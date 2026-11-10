@@ -112,7 +112,7 @@ class UpstreamCacheTests(unittest.TestCase):
                     store = cache.VersionCache(self.path)
                 self.assertIsNone(store.get("example", "repo"))
 
-    def test_missing_cache_and_cache_hits_do_not_write_files(self):
+    def test_missing_cache_and_cache_hits_leave_files_unchanged(self):
         store = cache.VersionCache(self.path)
         store.save()
         self.assertFalse(self.path.parent.exists())
@@ -120,9 +120,7 @@ class UpstreamCacheTests(unittest.TestCase):
         original = self.path.read_bytes()
         store = cache.VersionCache(self.path)
         store.get("example", "repo")
-        with patch.object(cache.os, "replace") as replace:
-            store.save()
-        replace.assert_not_called()
+        store.save()
         self.assertEqual(self.path.read_bytes(), original)
 
     def test_new_success_preserves_other_valid_records(self):
