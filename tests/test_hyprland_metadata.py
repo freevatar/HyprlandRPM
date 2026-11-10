@@ -84,27 +84,20 @@ class VersionMetadataTests(unittest.TestCase):
             ).stdout
             return output.split("\n", 1)
 
-    def test_snapshot_title_survives_rpm_shell_cmake_and_cpp(self):
-        for title in (
-            'fix "focus" handling',
-            r'preserve \n and C:\tmp\path',
-            'quotes "and\\"; ${not_expanded} $(not_executed) %macro',
-            "UTF-8 café — 窗口",
-            "trailing slash\\",
-        ):
-            with self.subTest(title=title):
-                commit, actual_title = self.generated_metadata(title)
-                self.assertRegex(commit, r"^[0-9a-f]{40}$")
-                self.assertEqual(actual_title, title)
-
-    def test_snapshot_build_exports_the_pinned_commit(self):
-        commit, _ = self.generated_metadata("Snapshot metadata")
+    def test_snapshot_metadata_survives_rpm_shell_cmake_and_cpp(self):
+        title = (
+            r'fix "focus"; preserve \n and C:\tmp\path; quotes "and\"; '
+            r'${not_expanded} $(not_executed) %macro; '
+            "UTF-8 café — 窗口; trailing slash\\"
+        )
+        commit, actual_title = self.generated_metadata(title)
         expected = re.search(
             r"(?m)^%global hyprland_commit ([0-9a-f]{40})$",
             (PACKAGE / "hyprland-git.spec").read_text(),
         )
         self.assertIsNotNone(expected)
         self.assertEqual(commit, expected.group(1))
+        self.assertEqual(actual_title, title)
 
 
 if __name__ == "__main__":

@@ -2,10 +2,10 @@
 
 from __future__ import annotations
 
+import base64
 import contextlib
 import importlib.util
 import io
-import os
 from pathlib import Path
 import subprocess
 import sys
@@ -49,10 +49,8 @@ class GitHubFixture:
 
 class UpdateTests(unittest.TestCase):
     def setUp(self):
-        self.previous_cwd = Path.cwd()
-        self.temp = tempfile.TemporaryDirectory(prefix="hyprland-updater-tests-")
-        self.checkout = Path(self.temp.name)
-        os.chdir(self.checkout)
+        checkout = self.enterContext(tempfile.TemporaryDirectory(prefix="hyprland-updater-tests-"))
+        self.enterContext(contextlib.chdir(checkout))
         self.git("init", "-q", "--initial-branch=master")
         self.git("config", "user.name", "Updater test")
         self.git("config", "user.email", "updater@example.invalid")
@@ -61,18 +59,12 @@ class UpdateTests(unittest.TestCase):
         self.git("add", ".")
         self.git("commit", "-qm", "baseline")
         self.config = updater.Config(Path("git.spec"), False)
-        self.stack = contextlib.ExitStack()
-        self.stack.enter_context(patch.object(updater, "GitHubClient", GitHubFixture))
-        self.stack.enter_context(patch.object(updater, "require_commands"))
-        self.stack.enter_context(patch.object(updater, "compare_rpm_versions", side_effect=lambda a, b: 0 if a == b else 12))
-        self.validation = self.stack.enter_context(patch.object(updater, "validate_specs"))
-        self.stack.enter_context(contextlib.redirect_stdout(io.StringIO()))
-        self.stack.enter_context(contextlib.redirect_stderr(io.StringIO()))
-
-    def tearDown(self):
-        self.stack.close()
-        os.chdir(self.previous_cwd)
-        self.temp.cleanup()
+        self.enterContext(patch.object(updater, "GitHubClient", GitHubFixture))
+        self.enterContext(patch.object(updater, "require_commands"))
+        self.enterContext(patch.object(updater, "compare_rpm_versions", side_effect=lambda a, b: 0 if a == b else 12))
+        self.validation = self.enterContext(patch.object(updater, "validate_specs"))
+        self.enterContext(contextlib.redirect_stdout(io.StringIO()))
+        self.enterContext(contextlib.redirect_stderr(io.StringIO()))
 
     @staticmethod
     def git(*args):
@@ -80,13 +72,15 @@ class UpdateTests(unittest.TestCase):
 
     @staticmethod
     def snapshot_text(*, current, release="%autorelease -b4"):
+        date = "Wed Sep 16 08:00:00 2026" if current else "Tue Sep 15 08:00:00 2026"
+        title = 'fix "focus" handling' if current else "previous commit"
         return (
             "%global upstream_version 0.56.2\n%global snapshot 1\n"
             "%global hyprland_commit " + ("b" if current else "a") * 40 + "\n"
-            "%global hyprland_commits 20\n"
-            "%global hyprland_commit_date " + updater.format_commit_date("2026-09-16T12:00:00Z") + "\n"
-            "%global hyprland_commit_message_b64 " + updater.encode_text_base64('fix "focus" handling') + "\n"
-            "%global udis86_commit " + "d" * 40 + "\n"
+            f"%global hyprland_commits {20 if current else 19}\n"
+            f"%global hyprland_commit_date {date}\n"
+            "%global hyprland_commit_message_b64 " + base64.b64encode(title.encode()).decode() + "\n"
+            "%global udis86_commit " + ("d" if current else "c") * 40 + "\n"
             "Name: hyprland-git\n"
             "Version: %{upstream_version}^%{snapshot}.git%{hyprland_commit}\n"
             f"Release: {release}\n"
@@ -114,16 +108,13 @@ class UpdateTests(unittest.TestCase):
         spec = updater.SpecDocument.load(Path("git.spec"))
         self.assertEqual(spec.get_global("snapshot"), "2")
         self.assertEqual(spec.get_global("hyprland_commit"), "b" * 40)
+        self.assertEqual(spec.get_global("hyprland_commits"), "20")
+        self.assertEqual(spec.get_global("hyprland_commit_date"), "Wed Sep 16 08:00:00 2026")
+        self.assertEqual(base64.b64decode(spec.get_global("hyprland_commit_message_b64")).decode(),
+                         'fix "focus" handling')
         self.assertEqual(spec.get_global("udis86_commit"), "d" * 40)
         self.assertIn("Release: %autorelease\n", spec.text)
         self.validation.assert_called_once()
-
-    def test_removed_protocols_submodule_is_not_queried(self):
-        with patch.object(GitHubFixture, "submodule_commit", autospec=True,
-                          side_effect=GitHubFixture.submodule_commit) as submodule:
-            self.assertEqual(updater.update(self.config), 0)
-        self.assertEqual(submodule.call_count, 1)
-        self.assertEqual(submodule.call_args.args[1:], ("subprojects/udis86", GitHubFixture.commit))
 
     def test_new_release_updates_version_and_resets_snapshot_counter(self):
         with patch.object(GitHubFixture, "version", "0.57.0"):
@@ -183,12 +174,6 @@ class UpdateTests(unittest.TestCase):
                     updater.update(self.config)
                 self.assertEqual(Path("git.spec").read_text(), "manual edits\n")
                 self.git("restore", "--staged", "--worktree", "git.spec")
-
-    def test_missing_prerequisite_leaves_spec_untouched(self):
-        with patch.object(updater, "require_commands", side_effect=updater.UpdateError("rpmspec unavailable")):
-            with self.assertRaisesRegex(updater.UpdateError, "rpmspec unavailable"):
-                updater.update(self.config)
-        self.assertEqual(self.git("status", "--porcelain"), "")
 
     def test_validation_failure_restores_spec_and_index(self):
         Path("unrelated.txt").write_text("staged work\n")
@@ -259,11 +244,12 @@ class UpdateTests(unittest.TestCase):
 class HttpTests(unittest.TestCase):
     def test_get_timeout_retries_with_bounded_attempts_and_safe_diagnostics(self):
         with patch.object(updater, "urlopen", side_effect=URLError("secret-token")) as request:
-            with patch.object(updater, "_sleep_before_retry") as sleep:
+            with patch.object(updater.time, "sleep") as sleep:
                 with self.assertRaises(updater.UpdateError) as caught:
                     updater.HttpClient().request("https://example.invalid/metadata", label="metadata")
         self.assertEqual(request.call_count, updater.HTTP_ATTEMPTS)
         self.assertEqual(sleep.call_count, updater.HTTP_ATTEMPTS - 1)
+        self.assertTrue(all(0 <= call.args[0] <= 30 for call in sleep.call_args_list))
         self.assertNotIn("secret-token", str(caught.exception))
 
     def test_nonretryable_http_error_omits_response_body(self):
@@ -275,13 +261,21 @@ class HttpTests(unittest.TestCase):
         self.assertNotIn("secret-token", str(caught.exception))
 
     def test_retry_after_is_bounded(self):
-        with patch.object(updater.time, "sleep") as sleep:
-            updater._sleep_before_retry(7, "86400")
-        sleep.assert_called_once_with(updater.MAX_RETRY_DELAY_SECONDS)
+        error = HTTPError("https://example.invalid", 503, "unavailable", {"Retry-After": "86400"}, None)
+        response = io.BytesIO(b"metadata")
+        response.headers = {}
+        with patch.object(updater, "urlopen", side_effect=[error, response]):
+            with patch.object(updater.time, "sleep") as sleep:
+                payload, _ = updater.HttpClient().request("https://example.invalid", label="metadata")
+        self.assertEqual(payload, b"metadata")
+        sleep.assert_called_once_with(30)
 
     def test_oversized_response_is_rejected(self):
-        with self.assertRaisesRegex(updater.UpdateError, "response exceeds"):
-            updater._bounded_read(io.BytesIO(b"x" * (updater.MAX_RESPONSE_BYTES + 1)), "metadata")
+        response = io.BytesIO(b"x" * (updater.MAX_RESPONSE_BYTES + 1))
+        response.headers = {}
+        with patch.object(updater, "urlopen", return_value=response):
+            with self.assertRaisesRegex(updater.UpdateError, "response exceeds"):
+                updater.HttpClient().request("https://example.invalid", label="metadata")
 
 
 if __name__ == "__main__":

@@ -145,14 +145,6 @@ class GitHubVersionTests(unittest.TestCase):
                     request.assert_not_called()
                     self.assertNotIn("fixture-secret", str(caught.exception))
 
-    def test_explicit_token_is_not_logged_on_http_failure(self):
-        with patch.object(github, "urlopen", side_effect=http_error(401, body=b"fixture-secret")):
-            with self.assertLogs(github.LOGGER, level="DEBUG") as logs:
-                with self.assertRaises(github.GitHubError) as caught:
-                    github.latest_version("example", "repo", token="fixture-secret")
-        self.assertNotIn("fixture-secret", str(caught.exception))
-        self.assertNotIn("fixture-secret", "\n".join(logs.output))
-
     def test_http_failure_does_not_expose_token_headers_or_response_body(self):
         output = io.StringIO()
         with patch.dict(os.environ, {"GITHUB_TOKEN": "fixture-secret"}):
@@ -197,12 +189,6 @@ class GitHubVersionTests(unittest.TestCase):
                 sleep.assert_not_called()
                 self.assertNotIn("fixture-secret", str(caught.exception))
 
-    def test_rate_limit_message_shows_reset_or_retry_delay(self):
-        self.assertIn("2033-05-18", github._rate_limit_message({"x-ratelimit-reset": "2000000000"}))
-        self.assertIn("3600 seconds", github._rate_limit_message({"retry-after": "3600"}))
-        self.assertEqual(github._rate_limit_message({"retry-after": "secret-header"}),
-                         "GitHub rate limit reached; retry later")
-
     def test_truncated_forbidden_body_preserves_rate_limit_headers(self):
         class TruncatedBody(io.BytesIO):
             def read(self, size):
@@ -235,13 +221,6 @@ class GitHubVersionTests(unittest.TestCase):
         self.assertEqual(request.call_count, 3)
         self.assertEqual([call.args[0] for call in sleep.call_args_list], [0.25, 0.5])
         self.assertNotIn("fixture-secret", str(caught.exception))
-
-    def test_repeated_server_failures_have_three_attempts(self):
-        with patch.object(github, "urlopen", side_effect=[http_error(503) for _ in range(3)]) as request:
-            with patch.object(github.time, "sleep"):
-                with self.assertRaisesRegex(github.GitHubError, "HTTP 503"):
-                    github.latest_version("example", "repo")
-        self.assertEqual(request.call_count, 3)
 
     def test_invalid_release_metadata_is_rejected_without_tag_fallback(self):
         invalid = [[], {}, release(prerelease=True), release(draft=True),

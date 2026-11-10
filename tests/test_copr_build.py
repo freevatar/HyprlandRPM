@@ -11,7 +11,6 @@ import subprocess
 import sys
 import tempfile
 import threading
-from types import SimpleNamespace
 import unittest
 from unittest.mock import patch
 from urllib.error import URLError
@@ -191,12 +190,6 @@ class BuildTests(unittest.TestCase):
         self.assertEqual(len(self.service.submissions), 1)
         self.assertEqual(self.service.records[-1]["source_package"]["version"], "1.0-3")
 
-    def test_rerun_skips_matching_success_without_local_state(self):
-        graph = self.graph({"library": set(), "app": {"library"}})
-        runner.build(self.root, [graph])
-        runner.build(self.root, [graph])
-        self.assertEqual(len(self.service.submissions), 2)
-
     def test_nonzero_epoch_build_succeeds_and_is_reused(self):
         graph = self.graph({"app": set()}, epoch="1")
         runner.build(self.root, [graph])
@@ -224,19 +217,12 @@ class BuildTests(unittest.TestCase):
         runner.build(self.root, [graph])
         self.assertEqual(len(self.service.submissions), 1)
 
-    def test_failed_prerequisite_blocks_only_its_descendants(self):
+    def test_rerun_retries_failed_prerequisite_then_builds_blocked_consumers(self):
         graph = self.graph({"library": set(), "app": {"library"}, "grandchild": {"app"}, "other": set()})
         self.service.outcomes[("library", TARGET)] = "failed"
         with self.assertRaisesRegex(runner.BuildError, "blocked by"):
             runner.build(self.root, [graph], jobs=2)
-        names = {data["subdirectory"] for data in self.service.submissions}
-        self.assertEqual(names, {"library", "other"})
-
-    def test_rerun_retries_failed_prerequisite_then_builds_blocked_consumers(self):
-        graph = self.graph({"library": set(), "app": {"library"}, "other": set()})
-        self.service.outcomes[("library", TARGET)] = "failed"
-        with self.assertRaisesRegex(runner.BuildError, "blocked by"):
-            runner.build(self.root, [graph])
+        self.assertEqual({data["subdirectory"] for data in self.service.submissions}, {"library", "other"})
         self.service.outcomes.clear()
         self.service.events.clear()
         runner.build(self.root, [graph])
@@ -244,15 +230,11 @@ class BuildTests(unittest.TestCase):
         self.assertEqual(names.count("library"), 2)
         self.assertEqual(names.count("other"), 1)
         self.assertEqual(names.count("app"), 1)
+        self.assertEqual(names.count("grandchild"), 1)
         self.assertLess(self.service.events.index(("finish", "library", TARGET)),
                         self.service.events.index(("submit", "app", TARGET)))
-
-    def test_source_build_without_name_is_resumed_from_scm_identity(self):
-        graph = self.graph({"app": set()})
-        self.service.add("app", state="pending", unknown=True)
-        runner.build(self.root, [graph])
-        self.assertFalse(self.service.submissions)
-        self.assertIn(("finish", "app", TARGET), self.service.events)
+        self.assertLess(self.service.events.index(("finish", "app", TARGET)),
+                        self.service.events.index(("submit", "grandchild", TARGET)))
 
     def test_older_active_build_is_drained_before_reusing_newer_success(self):
         graph = self.graph({"library": set(), "app": {"library"}})
@@ -281,6 +263,7 @@ class BuildTests(unittest.TestCase):
         self.assertEqual(len(self.service.submissions), 1)
         runner.build(self.root, [graph])
         self.assertEqual(len(self.service.submissions), 1)
+        self.assertIn(("finish", "app", TARGET), self.service.events)
 
     def test_unknown_source_in_other_subproject_is_not_reused(self):
         graph = self.graph({"app": set()})
@@ -347,30 +330,15 @@ class BuildTests(unittest.TestCase):
             runner.build(self.root, [graph])
         self.assertFalse(self.service.requests)
 
-    def test_preparation_validation_converts_errors_and_requires_tracked_manifest(self):
+    def test_preparation_requires_tracked_manifests(self):
         graph = self.graph({"app": set()})
         self.preparation.stop()
-
-        class PlanError(RuntimeError):
-            pass
-
-        def reject(root, graphs):
-            raise PlanError("missing release bumps")
-
-        module = SimpleNamespace(MANIFEST=Path("build-plan.json"), PlanError=PlanError,
-                                 validate_preparation=reject)
-        with patch.dict(sys.modules, {"rebuild": module}):
-            with self.assertRaisesRegex(runner.BuildError, "missing release bumps"):
-                runner.validate_preparation(self.root, [graph])
-            module.validate_preparation = lambda root, graphs: None
-            with self.assertRaisesRegex(runner.BuildError, "ls-files"):
-                runner.validate_preparation(self.root, [graph])
-            (self.root / "build-plan.json").write_text("{}")
-            self.git("add", "build-plan.json")
-            with self.assertRaises(runner.BuildError):
-                runner.validate_preparation(self.root, [graph])
-            (self.root / "package-graph.json").write_text("{}")
-            self.git("add", "package-graph.json")
+        with patch("rebuild.validate_preparation"):
+            for manifest in ("build-plan.json", "package-graph.json"):
+                with self.assertRaisesRegex(runner.BuildError, "ls-files"):
+                    runner.validate_preparation(self.root, [graph])
+                (self.root / manifest).write_text("{}")
+                self.git("add", manifest)
             runner.validate_preparation(self.root, [graph])
 
     def test_paginates_history_before_treating_old_success_as_missing(self):

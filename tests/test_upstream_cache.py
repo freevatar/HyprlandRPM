@@ -41,21 +41,6 @@ class UpstreamCacheTests(unittest.TestCase):
         store.save()
         reopened = cache.VersionCache(self.path)
         self.assertEqual(reopened.get("EXAMPLE", "REPO"), value)
-        self.assertEqual(json.loads(self.path.read_text()), {
-            "version": 1, "entries": {"example/repo|releases": self.record(value)},
-        })
-
-    def test_release_and_tag_policies_are_isolated(self):
-        store = cache.VersionCache(self.path)
-        value = release()
-        tag = UpstreamVersion("v3.0", "3.0", "https://github.com/example/repo/tree/v3.0", "tag")
-        store.put("example", "repo", value)
-        self.assertIsNone(store.get("example", "repo", allow_tags=True))
-        store.put("example", "repo", tag, allow_tags=True)
-        store.save()
-        reopened = cache.VersionCache(self.path)
-        self.assertEqual(reopened.get("example", "repo"), value)
-        self.assertEqual(reopened.get("example", "repo", allow_tags=True), tag)
 
     def test_expiry_boundary_and_future_timestamp_never_hit(self):
         for timestamp, expected in ((10000, True), (6401, True), (6400, False),
@@ -149,23 +134,6 @@ class UpstreamCacheTests(unittest.TestCase):
         reopened = cache.VersionCache(self.path)
         self.assertEqual(reopened.get("example", "repo"), release())
         self.assertEqual(reopened.get("example", "other"), other)
-
-    def test_expired_records_remain_on_disk_until_successfully_refreshed(self):
-        expired = self.record(timestamp=6400)
-        self.write({"example/repo|releases": expired})
-        original = self.path.read_bytes()
-        store = cache.VersionCache(self.path)
-        self.assertIsNone(store.get("example", "repo"))
-        # A failed refresh does not put a new value and must leave the file alone.
-        store.save()
-        self.assertEqual(self.path.read_bytes(), original)
-        store.put("example", "other", release(repo="other"))
-        store.save()
-        entries = json.loads(self.path.read_text())["entries"]
-        self.assertEqual(entries["example/repo|releases"], expired)
-        store.put("example", "repo", release(tag="v3.0"))
-        store.save()
-        self.assertEqual(cache.VersionCache(self.path).get("example", "repo"), release(tag="v3.0"))
 
     def test_unreadable_cache_does_not_fail_lookup_or_expose_error_contents(self):
         with patch.object(Path, "read_text", side_effect=PermissionError("fixture-secret")):

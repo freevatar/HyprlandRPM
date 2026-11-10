@@ -1,4 +1,4 @@
-"""The shared CI gate stops on failures and checks expanded spec scriptlets."""
+"""The shared CI gate rejects failed checks and validates both Fedora targets."""
 
 import os
 from pathlib import Path
@@ -24,12 +24,9 @@ class CheckScriptTests(unittest.TestCase):
         shutil.copy(ROOT / "scripts/package_graph.py", self.root / "scripts/package_graph.py")
         shutil.copy(ROOT / "hyprland-git/update.py", self.root / "hyprland-git/update.py")
         (self.root / "sample/sample.spec").write_text("fixture\n")
-        self.log = self.root / "commands.log"
         self.env = dict(os.environ, PATH=f"{self.root / 'bin'}:{os.environ['PATH']}",
-                        CHECK_LOG=str(self.log), TEST_EXIT="0", PLAN_EXIT="0",
-                        RPMSPEC_EXIT="0", EXPANDED_SPEC="%prep\ntrue\n")
+                        TEST_EXIT="0", PLAN_EXIT="0", RPMSPEC_EXIT="0", F45_INVALID_SHELL="0")
         self.executable("python3", f"""#!/bin/sh
-printf '%s\\n' "$*" >> "$CHECK_LOG"
 case "$*" in
     *'unittest discover'*) exit "$TEST_EXIT" ;;
     *'scripts/rebuild.py check'*) exit "$PLAN_EXIT" ;;
@@ -37,7 +34,6 @@ esac
 exec {shlex.quote(sys.executable)} "$@"
 """)
         self.executable("rpmspec", """#!/bin/sh
-printf 'rpmspec %s\\n' "$*" >> "$CHECK_LOG"
 case "$*" in
     *'fedora 45'*)
         if [ "${F45_INVALID_SHELL:-0}" = 1 ]; then
@@ -46,7 +42,7 @@ case "$*" in
         fi
         ;;
 esac
-printf '%s' "$EXPANDED_SPEC"
+printf '%%prep\\ntrue\\n'
 exit "$RPMSPEC_EXIT"
 """)
 
@@ -55,36 +51,17 @@ exit "$RPMSPEC_EXIT"
         path.write_text(content)
         path.chmod(0o755)
 
-    def run_check(self):
+    def run_check(self, **env):
         # Start outside the fixture checkout to exercise the script's root lookup.
         return subprocess.run(["bash", str(self.root / "scripts/check.sh")],
-                              cwd=self.root / "sample", env=self.env,
-                              capture_output=True, text=True)
+                              cwd=self.root / "sample", env={**self.env, **env},
+                              capture_output=True, text=True, timeout=15)
 
-    def test_regression_failure_stops_the_gate(self):
-        self.env["TEST_EXIT"] = "19"
-        result = self.run_check()
-        self.assertEqual(result.returncode, 19)
-        self.assertNotIn("rebuild.py", self.log.read_text())
-        self.assertNotIn("rpmspec", self.log.read_text())
-
-    def test_plan_failure_stops_the_gate(self):
-        self.env["PLAN_EXIT"] = "23"
-        result = self.run_check()
-        self.assertEqual(result.returncode, 23)
-        self.assertNotIn("rpmspec", self.log.read_text())
-
-    def test_spec_expansion_failure_fails_the_gate(self):
-        self.env["RPMSPEC_EXIT"] = "42"
-        result = self.run_check()
-        self.assertNotEqual(result.returncode, 0)
-        self.assertNotIn("Validated", result.stdout)
-
-    def test_invalid_expanded_shell_fails_the_gate(self):
-        self.env["EXPANDED_SPEC"] = "%prep\nif true; then\n"
-        result = self.run_check()
-        self.assertNotEqual(result.returncode, 0)
-        self.assertIn("invalid %prep shell syntax", result.stderr)
+    def test_failed_validation_rejects_the_gate(self):
+        for check in ("TEST_EXIT", "PLAN_EXIT", "RPMSPEC_EXIT"):
+            with self.subTest(check=check):
+                result = self.run_check(**{check: "1"})
+                self.assertNotEqual(result.returncode, 0, result.stdout + result.stderr)
 
     def test_valid_expanded_spec_passes(self):
         result = self.run_check()

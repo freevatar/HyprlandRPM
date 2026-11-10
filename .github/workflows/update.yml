@@ -6,11 +6,15 @@ on:
     - cron: '45 */6 * * *'
 
 concurrency:
-  group: hyprland-rpm-builds
+  group: hyprland-rpm-updates
   cancel-in-progress: false
 
+permissions:
+  contents: read
+
 jobs:
-  main:
+  prepare:
+    if: github.ref == 'refs/heads/master'
     runs-on: ubuntu-latest
     permissions:
       contents: write
@@ -19,6 +23,8 @@ jobs:
     defaults:
       run:
         shell: bash
+    outputs:
+      commit: ${{ steps.update.outputs.commit }}
 
     steps:
       - name: Prepare
@@ -26,15 +32,14 @@ jobs:
           dnf -y install --nodocs --setopt=install_weak_deps=0 \
             git-core rpm-build rpmdevtools python3 python3-rpm \
             redhat-rpm-config cmake-rpm-macros meson \
-            python-rpm-macros python3-rpm-macros systemd-rpm-macros \
-            cmake gcc-c++ patch pkgconf-pkg-config
+            python-rpm-macros python3-rpm-macros systemd-rpm-macros
 
       - uses: actions/checkout@v4
         with:
           ref: master
           fetch-depth: 0
 
-      - name: Update, validate, and publish specs
+      - name: Prepare and publish revisions
         id: update
         env:
           GITHUB_TOKEN: ${{ github.token }}
@@ -47,19 +52,11 @@ jobs:
 
           bash .github/scripts/update.sh
 
-      - name: Use the validated commit
-        env:
-          SOURCE_COMMIT: ${{ steps.update.outputs.commit }}
-        run: git checkout --detach "$SOURCE_COMMIT"
-
-      - name: Build or resume COPR packages
-        env:
-          COPR_LOGIN: ${{ secrets.COPR_LOGIN }}
-          COPR_TOKEN: ${{ secrets.COPR_TOKEN }}
-          COPR_OWNER: ${{ vars.COPR_OWNER || 'giperborey' }}
-          COPR_PROJECT: ${{ vars.COPR_PROJECT || 'Hyprland' }}
-          SOURCE_COMMIT: ${{ steps.update.outputs.commit }}
-        run: |
-          python3 -B scripts/rebuild.py build \
-            --owner "$COPR_OWNER" --project "$COPR_PROJECT" \
-            --repo "$GITHUB_SERVER_URL/$GITHUB_REPOSITORY" --commit "$SOURCE_COMMIT"
+  build:
+    needs: prepare
+    uses: ./.github/workflows/build.yml
+    with:
+      source_commit: ${{ needs.prepare.outputs.commit }}
+    secrets:
+      COPR_LOGIN: ${{ secrets.COPR_LOGIN }}
+      COPR_TOKEN: ${{ secrets.COPR_TOKEN }}

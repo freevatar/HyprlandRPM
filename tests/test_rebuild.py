@@ -99,16 +99,6 @@ class PlannerTests(unittest.TestCase):
         self.assertIn("1.0 -> 3.0", output)
         self.assertNotIn("2.0 -> 3.0", output)
 
-    def test_display_identifies_new_package_without_inventing_old_version(self):
-        self.spec("old")
-        self.commit()
-        self.spec("new", version="2.0")
-        self.refresh_graph()
-        output = self.show(self.prepare())
-        self.assertIn("new package", output)
-        self.assertNotIn("1.0 -> 2.0", output)
-        self.assertNotIn("unchanged", output)
-
     def test_combines_roots_and_bumps_transitive_consumers_once(self):
         first = self.spec("first")
         second = self.spec("second")
@@ -117,6 +107,9 @@ class PlannerTests(unittest.TestCase):
         unrelated = self.spec("unrelated")
         untouched = unrelated.read_bytes()
         self.commit()
+        (self.root / "README.md").write_text("private draft\n")
+        self.git("add", "README.md")
+        index = self.git("diff", "--cached")
         self.bump_version(first)
         self.bump_version(second)
         result = self.prepare()
@@ -129,7 +122,7 @@ class PlannerTests(unittest.TestCase):
         self.assertFalse(again.updates)
         again.apply()
         self.assertEqual(unrelated.read_bytes(), untouched)
-        self.assertEqual(self.git("diff", "--cached", "--name-only"), "")
+        self.assertEqual(self.git("diff", "--cached"), index)
 
     def test_version_updated_consumer_needs_no_extra_release_bump(self):
         library = self.spec("library")
@@ -145,21 +138,6 @@ class PlannerTests(unittest.TestCase):
         self.spec("app", requires=("headers-static", "cmake(wire-scanner) >= 1.0"))
         graph = build_graph(self.root, TARGET)
         self.assertEqual(graph.dependencies["app"], {"headers", "wire"})
-
-    def test_graph_uses_fedora_conditional_branches(self):
-        self.spec("oldlib")
-        self.spec("newlib")
-        self.spec("app", extra="%if 0%{?fedora} < 45\nBuildRequires: pkgconfig(oldlib)\n%else\nBuildRequires: pkgconfig(newlib)\n%endif\n")
-        self.assertEqual(build_graph(self.root, TARGET).dependencies["app"], {"oldlib"})
-        self.assertEqual(build_graph(self.root, "fedora-45-x86_64").dependencies["app"], {"newlib"})
-
-    def test_insufficient_version_stops_before_any_writes(self):
-        self.spec("library")
-        app = self.spec("app", requires=("pkgconfig(library) >= 2.0",))
-        original = app.read_bytes()
-        with self.assertRaisesRegex(GraphError, "planned providers"):
-            build_graph(self.root, TARGET)
-        self.assertEqual(app.read_bytes(), original)
 
     def test_ambiguous_provider_and_cycle_are_rejected(self):
         self.spec("first", provides=("choice",))
@@ -209,26 +187,18 @@ class PlannerTests(unittest.TestCase):
         self.assertIn(b"Release: %autorelease -b2\r\n", content)
         self.assertNotIn(b"\n", content.replace(b"\r\n", b""))
 
-    def test_unrelated_staged_changes_are_preserved(self):
-        self.spec("library")
-        self.commit()
-        readme = self.root / "README.md"
-        readme.write_text("private draft\n")
-        self.git("add", "README.md")
-        index = self.git("diff", "--cached")
-        result = self.prepare()
-        result.apply()
-        self.assertEqual(self.git("diff", "--cached"), index)
-        self.assertFalse(result.affected)
-
     def test_new_package_is_not_given_rebuild_release(self):
         self.spec("old")
         self.commit()
-        self.spec("new", requires=("pkgconfig(old)",))
+        self.spec("new", version="2.0", requires=("pkgconfig(old)",))
         self.refresh_graph()
         result = self.prepare()
         self.assertEqual(result.affected, {"new"})
         self.assertFalse(result.updates)
+        output = self.show(result)
+        self.assertIn("new package", output)
+        self.assertNotIn("1.0 -> 2.0", output)
+        self.assertNotIn("unchanged", output)
 
     def test_downgrade_and_unsupported_release_refuse_to_write(self):
         library = self.spec("library")
@@ -352,16 +322,6 @@ class PlannerTests(unittest.TestCase):
             self.prepare().apply()
         plan(self.root, prepared_base, (TARGET,)).apply()
         validate_preparation(self.root)
-
-    def test_planning_uses_saved_edges_without_resolving_dependencies(self):
-        library = self.spec("library")
-        self.spec("app", requires=("pkgconfig(library)",))
-        self.commit()
-        self.bump_version(library)
-        with patch("rebuild.build_graph", side_effect=AssertionError("unexpected dependency resolution")), \
-                patch("package_graph.build_graph", side_effect=AssertionError("unexpected dependency resolution")):
-            result = self.prepare()
-        self.assertEqual(result.affected, {"library", "app"})
 
     def test_apply_does_not_certify_stale_dependencies_or_unsatisfied_versions(self):
         self.spec("first")

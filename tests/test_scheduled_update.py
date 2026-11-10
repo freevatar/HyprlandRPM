@@ -43,8 +43,14 @@ class ScheduledUpdateTests(unittest.TestCase):
                 changed = subprocess.check_output(["git", "diff", "--name-only"], text=True)
                 if changed:
                     Path("build-plan.json").write_text(json.dumps({"base": sys.argv[3]}) + "\\n")
+            elif sys.argv[1] == "check" and "--base" in sys.argv:
+                subprocess.run(["bash", "tests/validate-plan.sh"], check=True)
         """)
         self.write("scripts/check.sh", """
+            echo 'Full validation belongs to the shared build workflow' >&2
+            exit 99
+        """)
+        self.write("tests/validate-plan.sh", """
             set -eu
             printf 'check\\n' >> "$VALIDATOR_LOG"
             if [ -n "${VALIDATION_FAIL:-}" ]; then exit 41; fi

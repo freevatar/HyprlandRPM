@@ -3,38 +3,40 @@ name: Build RPMs
 on:
   push:
     branches: [master]
-    paths:
-      - '**/*.spec'
-      - '**/*.patch'
-      - '**/*.diff'
-      - '**/*.bash'
-      - '**/macros.*'
-      - 'scripts/**'
-      - 'build-plan.json'
-      - 'package-graph.json'
-      - 'hyprland-git/*.py'
-      - '.copr/**'
-      - '.github/workflows/build.yml'
+    paths-ignore: ['**/*.md']
+  pull_request:
+    paths-ignore: ['**/*.md']
   workflow_dispatch:
+  workflow_call:
+    inputs:
+      source_commit:
+        required: true
+        type: string
+    secrets:
+      COPR_LOGIN:
+        required: true
+      COPR_TOKEN:
+        required: true
 
 permissions:
   contents: read
 
-concurrency:
-  group: hyprland-rpm-builds
-  cancel-in-progress: false
-
 jobs:
-  build:
+  check:
+    name: Validate Fedora ${{ matrix.fedora }}
     runs-on: ubuntu-latest
+    strategy:
+      fail-fast: false
+      matrix:
+        fedora: [44, 45]
     container:
-      image: registry.fedoraproject.org/fedora-minimal:44
+      image: registry.fedoraproject.org/fedora-minimal:${{ matrix.fedora }}
     defaults:
       run:
         shell: bash
 
     steps:
-      - name: Install validation and build planning tools
+      - name: Install validation tools
         run: |
           dnf -y install --nodocs --setopt=install_weak_deps=0 \
             git-core rpm-build rpmdevtools python3 python3-rpm \
@@ -44,16 +46,48 @@ jobs:
 
       - uses: actions/checkout@v4
         with:
+          ref: ${{ inputs.source_commit || github.sha }}
           fetch-depth: 0
           persist-credentials: false
 
       - name: Trust the checked-out workspace
         run: git config --global --add safe.directory "$GITHUB_WORKSPACE"
 
-      - name: Validate before building
+      - name: Validate packages
         env:
-          PUSH_BASE: ${{ github.event.before }}
-        run: bash scripts/check.sh "$PUSH_BASE"
+          BASE_REF: ${{ github.event.pull_request.base.sha || github.event.before }}
+        run: bash scripts/check.sh "$BASE_REF"
+
+  build:
+    name: Build in COPR
+    needs: check
+    if: github.event_name != 'pull_request' && github.ref == 'refs/heads/master'
+    runs-on: ubuntu-latest
+    concurrency:
+      group: hyprland-rpm-builds
+      cancel-in-progress: false
+    container:
+      image: registry.fedoraproject.org/fedora-minimal:44
+    defaults:
+      run:
+        shell: bash
+
+    steps:
+      - name: Install build planning tools
+        run: |
+          dnf -y install --nodocs --setopt=install_weak_deps=0 \
+            git-core rpm-build rpmdevtools python3 python3-rpm \
+            redhat-rpm-config cmake-rpm-macros meson \
+            python-rpm-macros python3-rpm-macros systemd-rpm-macros
+
+      - uses: actions/checkout@v4
+        with:
+          ref: ${{ inputs.source_commit || github.sha }}
+          fetch-depth: 0
+          persist-credentials: false
+
+      - name: Trust the checked-out workspace
+        run: git config --global --add safe.directory "$GITHUB_WORKSPACE"
 
       - name: Build or resume COPR packages
         env:

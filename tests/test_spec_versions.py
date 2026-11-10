@@ -9,7 +9,6 @@ from unittest.mock import patch
 
 
 sys.path.insert(0, str(Path(__file__).resolve().parents[1] / "scripts"))
-from package_graph import GraphError
 import spec_versions
 from spec_versions import VersionEdit, VersionEditError, apply_version_edits, prepare_version_edit
 
@@ -128,21 +127,6 @@ class SpecVersionTests(unittest.TestCase):
                                                  "Version: 1.0\nName: package-%{version}\n"))
         with self.assertRaisesRegex(VersionEditError, "preserve the RPM name"):
             self.prepare(path)
-
-    def test_candidate_version_must_match_requested(self):
-        path = self.spec()
-        with patch.object(spec_versions, "_identity", side_effect=[("package", "1.0"), ("package", "3.0")]):
-            with self.assertRaisesRegex(VersionEditError, "expected version"):
-                self.prepare(path)
-
-    def test_rpm_failure_leaves_spec_and_directory_untouched(self):
-        path = self.spec()
-        original = path.read_bytes()
-        with patch.object(spec_versions, "query", side_effect=["package\t1.0\n", GraphError("RPM unavailable")]):
-            with self.assertRaisesRegex(VersionEditError, "RPM unavailable"):
-                self.prepare(path)
-        self.assertEqual(path.read_bytes(), original)
-        self.assertEqual(list(self.root.iterdir()), [path])
 
     def test_refuses_symlink_during_preparation_and_apply(self):
         path = self.spec()

@@ -35,7 +35,7 @@ for attempt in 1 2 3; do
         python3 -B scripts/rebuild.py check
         python3 -B hyprland-git/update.py
         python3 -B scripts/rebuild.py apply --base "$base"
-        bash scripts/check.sh "$base"
+        python3 -B scripts/rebuild.py check --base "$base"
         git diff --check
 
         mapfile -d '' -t changed_specs < <(git diff --name-only -z -- '*.spec')

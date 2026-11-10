@@ -10,19 +10,31 @@ import unittest
 
 ROOT = Path(__file__).resolve().parents[1]
 PACKAGE = ROOT / "hyprland-git"
-TOOLS = ("cmake", "g++", "patch", "pkg-config", "rpmspec")
-UPSTREAM_CONFIGURE = r'''        progress.printMessageAbove(verboseString("setting PREFIX for cmake to {}", DataState::getHeadersPath()));
+TOOLS = ("cmake", "g++", "make", "patch", "pkg-config", "rpmspec")
+UPSTREAM_CONFIGURE = r'''    if (m_bVerbose)
+        progress.printMessageAbove(verboseString("setting PREFIX for cmake to {}", DataState::getHeadersPath()));
 
-    const auto CONFIGURE_CMD =
-        nixDevelopIfNeeded(std::format("cd {} && cmake --no-warn-unused-cli -DCMAKE_BUILD_TYPE:STRING=Release -DCMAKE_INSTALL_PREFIX:STRING=\"{}\" -S . -B ./build", WORKINGDIR,
-                                       DataState::getHeadersPath()),
-                           HLVER);
+    const auto CONFIGURE_CMD = nixDevelopIfNeeded(std::format("make -C '{}' PREFIX='{}' cmake", WORKINGDIR, DataState::getHeadersPath()), HLVER);
 
     if (!CONFIGURE_CMD) {
+        std::println(stderr, "\n{}", failureString("Could not configure hyprland: {}", CONFIGURE_CMD.error()));
 '''
 CMAKE_PREAMBLE = """cmake_minimum_required(VERSION 3.30)
 project(header_configuration NONE)
 find_package(PkgConfig REQUIRED)
+"""
+MAKEFILE_FIXTURE = """PREFIX ?= /usr/local
+BUILDDIR ?= ./build
+CMAKE_BUILD_TYPE := Release
+CMAKE_ARGS = -DCMAKE_BUILD_TYPE:STRING=$(CMAKE_BUILD_TYPE) -DCMAKE_INSTALL_PREFIX:STRING=$(PREFIX)
+CMAKE_BUILDTYPE_FILE = $(BUILDDIR)/cmake_last_build_type
+CMAKE_GENERATE_CMD = cmake -Wno-unused-cli $(CMAKE_ARGS) -S . -B $(BUILDDIR)
+
+.PHONY: cmake
+cmake $(CMAKE_BUILDTYPE_FILE):
+\tmkdir -p "$(BUILDDIR)"
+\tif [ ! -f "$(CMAKE_BUILDTYPE_FILE)" ]; then $(CMAKE_GENERATE_CMD); fi
+\techo "$(CMAKE_BUILD_TYPE)+$(CMAKE_ARGS)" > "$(CMAKE_BUILDTYPE_FILE)"
 """
 
 
@@ -86,6 +98,7 @@ class HyprpmCompatibilityTests(unittest.TestCase):
             CMAKE_PREAMBLE
             + "pkg_search_module(LUA REQUIRED IMPORTED_TARGET GLOBAL lua>=5.5 lua5.5 lua-5.5)\n"
         )
+        (working / "Makefile").write_text(MAKEFILE_FIXTURE)
         original = subprocess.run(
             ["cmake", "-S", str(working), "-B", str(working / "original-build")],
             env=self.env, capture_output=True, text=True,
@@ -100,7 +113,12 @@ class HyprpmCompatibilityTests(unittest.TestCase):
         self.assertIn(
             "pkg_search_module(LUA REQUIRED IMPORTED_TARGET GLOBAL lua)\n", cmake.read_text()
         )
-        self.assertTrue((working / "build/CMakeCache.txt").is_file())
+        cache = (working / "build/CMakeCache.txt").read_text()
+        self.assertIn(f"CMAKE_INSTALL_PREFIX:STRING={self.directory / 'headers'}\n", cache)
+        self.assertIn(
+            "Release+-DCMAKE_BUILD_TYPE:STRING=Release",
+            (working / "build/cmake_last_build_type").read_text(),
+        )
 
     def test_upstream_drift_stops_before_cmake(self):
         working = self.directory / "drift"

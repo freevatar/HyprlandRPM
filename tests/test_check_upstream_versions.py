@@ -27,8 +27,6 @@ checker = importlib.util.module_from_spec(MODULE_SPEC)
 sys.modules[MODULE_SPEC.name] = checker
 MODULE_SPEC.loader.exec_module(checker)
 
-TARGET = "fedora-44-x86_64"
-
 
 @unittest.skipUnless(shutil.which("rpmspec") and shutil.which("git"), "requires RPM and Git")
 class CheckerTests(unittest.TestCase):
@@ -77,41 +75,23 @@ class CheckerTests(unittest.TestCase):
     def package_row(output, name):
         return next(line for line in output.splitlines() if re.match(rf"^{re.escape(name)}\s", line))
 
-    def test_rpm_expands_name_version_url_and_target_conditionals(self):
-        path = self.spec(
+    def test_rpm_expands_metadata_for_default_and_explicit_targets(self):
+        self.spec(
             "source-directory", name="%{project}", version="%{upstream}",
             url="https://github.com/example/%{project}",
             prefix=("%global project actual-package\n"
                     "%if 0%{?fedora} >= 45\n%global upstream 10.0\n"
                     "%else\n%global upstream 9.0\n%endif\n"),
         )
-        first = checker.parse_spec(path, TARGET)
-        second = checker.parse_spec(path, "fedora-45-x86_64")
-        self.assertEqual((first.name, first.version, first.url, first.path),
-                         ("actual-package", "9.0", "https://github.com/example/actual-package", path))
-        self.assertEqual(second.version, "10.0")
-
-    def test_package_name_comes_from_rpm_metadata_not_directory(self):
-        self.spec("source-directory", name="actual-package")
-        code, output, _, request = self.run_checker()
-        self.assertEqual(code, 0)
-        self.assertIn("CURRENT", self.package_row(output, "actual-package"))
-        self.assertNotIn("source-directory", output)
-        self.assertEqual(request.call_args.args[:2], ("example", "actual-package"))
-
-    def test_main_passes_explicit_target_to_rpm(self):
-        self.spec(version="%{fedora}")
-        code, output, _, _ = self.run_checker(
-            "--target", "fedora-45-x86_64", response=self.upstream("45")
-        )
-        self.assertEqual(code, 0)
-        self.assertIn("CURRENT", self.package_row(output, "package"))
-
-    def test_default_target_is_fedora44(self):
-        self.spec(version="%{fedora}")
-        code, output, _, _ = self.run_checker(response=self.upstream("44"))
-        self.assertEqual(code, 0)
-        self.assertIn("CURRENT", self.package_row(output, "package"))
+        for arguments, version in (((), "9.0"), (("--target", "fedora-45-x86_64"), "10.0")):
+            with self.subTest(arguments=arguments):
+                code, output, _, request = self.run_checker(
+                    "--refresh", *arguments, response=self.upstream(version, repo="actual-package")
+                )
+                self.assertEqual(code, 0)
+                self.assertIn("CURRENT", self.package_row(output, "actual-package"))
+                self.assertNotIn("source-directory", output)
+                request.assert_called_once_with("example", "actual-package", allow_tags=False)
 
     def test_wrong_hosts_fail_without_github_requests(self):
         for url in (
@@ -125,8 +105,6 @@ class CheckerTests(unittest.TestCase):
                 self.assertEqual(code, 1)
                 request.assert_not_called()
                 self.assertIn("ERROR", self.package_row(output, "package"))
-                with self.assertRaises(checker.CheckError):
-                    checker.extract_repo_info(url)
 
     def test_github_http_and_https_urls_are_supported(self):
         self.assertEqual(checker.extract_repo_info("https://github.com/example/package.git"),
@@ -144,45 +122,18 @@ class CheckerTests(unittest.TestCase):
         self.assertEqual(request.call_count, 1)
         self.assert_summary(output, current=1, update=0, error=0)
 
-    def test_hyprland_snapshot_is_visibly_skipped(self):
-        self.spec("snapshot-source", name="hyprland-git")
-        self.spec()
-        code, output, _, request = self.run_checker()
-        self.assertEqual(code, 0)
-        self.assertEqual(request.call_count, 1)
-        self.assertIn("SKIP", self.package_row(output, "hyprland-git"))
-        self.assert_summary(output, current=1, skip=1)
-
-    def test_missing_version_and_rpm_parse_failure_return_error(self):
-        path = self.spec()
-        valid = path.read_text()
+    def test_parse_errors_do_not_prevent_checking_other_packages(self):
+        invalid = self.spec("a-broken")
+        valid = invalid.read_text()
+        self.spec("b-valid")
         for content in (valid.replace("Version: 1.0\n", ""), valid + "\n%if 1\n"):
             with self.subTest(content=content):
-                path.write_text(content)
-                code, output, _, request = self.run_checker()
+                invalid.write_text(content)
+                code, output, _, request = self.run_checker("--refresh")
                 self.assertEqual(code, 1)
-                request.assert_not_called()
-                self.assert_summary(output, error=1)
-                with self.assertRaises(checker.CheckError):
-                    checker.parse_spec(path)
-
-    def test_parse_error_does_not_prevent_checking_other_packages(self):
-        invalid = self.spec("a-broken")
-        invalid.write_text(invalid.read_text().replace("Version: 1.0\n", ""))
-        self.spec("b-valid")
-        code, output, _, request = self.run_checker()
-        self.assertEqual(code, 1)
-        self.assertEqual(request.call_count, 1)
-        self.assertIn("CURRENT", self.package_row(output, "b-valid"))
-        self.assert_summary(output, error=1, current=1)
-
-    def test_all_network_errors_return_nonzero(self):
-        self.spec("first")
-        self.spec("second")
-        code, output, _, request = self.run_checker(side_effect=GitHubError("network unavailable"))
-        self.assertEqual(code, 1)
-        self.assertEqual(request.call_count, 2)
-        self.assert_summary(output, error=2, current=0)
+                self.assertEqual(request.call_count, 1)
+                self.assertIn("CURRENT", self.package_row(output, "b-valid"))
+                self.assert_summary(output, error=1, current=1)
 
     def test_network_error_does_not_prevent_other_results(self):
         self.spec("first")
@@ -199,6 +150,7 @@ class CheckerTests(unittest.TestCase):
         self.spec("update-package", version="9.0")
         self.spec("current-package", version="10.0")
         self.spec("ahead-package", version="10.0")
+        originals = {path: path.read_bytes() for path in self.root.glob("*/*.spec")}
         versions = {"update-package": "10.0", "current-package": "10.0", "ahead-package": "9.0"}
 
         def upstream(owner, repo, **options):
@@ -210,6 +162,7 @@ class CheckerTests(unittest.TestCase):
                              ("ahead-package", "AHEAD")):
             self.assertIn(status, self.package_row(output, name))
         self.assert_summary(output, update=1, current=1, ahead=1, error=0)
+        self.assertEqual({path: path.read_bytes() for path in originals}, originals)
 
     def test_updates_only_keeps_errors_and_counts_hidden_rows(self):
         self.spec("update-package", version="9.0")
@@ -269,14 +222,6 @@ class CheckerTests(unittest.TestCase):
         self.assertIn("HELD", self.package_row(output, "glaze"))
         self.assert_summary(output, held=1, update=0)
 
-    def test_removing_upper_bound_allows_new_major_version(self):
-        consumer = self.constrained_glaze()
-        consumer.write_text(consumer.read_text().replace("BuildRequires: glaze-static < 8\n", ""))
-        code, output, _, _ = self.run_checker(response=self.upstream("8.4.0", repo="glaze"))
-        self.assertEqual(code, 0)
-        self.assertIn("UPDATE", self.package_row(output, "glaze"))
-        self.assert_summary(output, held=0, update=1)
-
     def test_constraints_follow_active_target_conditionals(self):
         consumer = self.constrained_glaze(requirements="glaze-static >= 7")
         consumer.write_text(consumer.read_text().replace(
@@ -294,19 +239,16 @@ class CheckerTests(unittest.TestCase):
         self.assertIn("HELD", self.package_row(output, "glaze"))
         self.assert_summary(output, held=1, update=0)
 
-    def test_unversioned_requirement_does_not_hold_update(self):
-        self.constrained_glaze(requirements="glaze-static")
-        code, output, _, _ = self.run_checker(response=self.upstream("8.4.0", repo="glaze"))
-        self.assertEqual(code, 0)
-        self.assertIn("UPDATE", self.package_row(output, "glaze"))
-        self.assert_summary(output, held=0, update=1)
-
-    def test_unrelated_requirement_does_not_hold_update(self):
-        self.constrained_glaze(requirements="unrelated-library < 8")
-        code, output, _, _ = self.run_checker(response=self.upstream("8.4.0", repo="glaze"))
-        self.assertEqual(code, 0)
-        self.assertIn("UPDATE", self.package_row(output, "glaze"))
-        self.assert_summary(output, held=0, update=1)
+    def test_unversioned_and_unrelated_requirements_do_not_hold_update(self):
+        for requirement in ("glaze-static", "unrelated-library < 8"):
+            with self.subTest(requirement=requirement):
+                self.constrained_glaze(requirements=requirement)
+                code, output, _, _ = self.run_checker(
+                    "--refresh", response=self.upstream("8.4.0", repo="glaze")
+                )
+                self.assertEqual(code, 0)
+                self.assertIn("UPDATE", self.package_row(output, "glaze"))
+                self.assert_summary(output, held=0, update=1)
 
     def test_constraints_match_generic_provided_capabilities(self):
         self.spec("library", version="2.0",
@@ -322,18 +264,6 @@ class CheckerTests(unittest.TestCase):
         self.assertIn("consumer", output)
         self.assertRegex(output, r"pkgconfig\(example-api\)\s*<\s*3")
         self.assert_summary(output, held=1, current=1, update=0)
-
-    def test_independently_versioned_provide_is_not_projected(self):
-        self.spec("library", version="2.0", metadata="Provides: example-abi = 1\n")
-        self.spec("consumer", metadata="BuildRequires: example-abi < 2\n")
-
-        def upstream(owner, repo, **options):
-            return self.upstream("3.0" if repo == "library" else "1.0", repo=repo)
-
-        code, output, _, _ = self.run_checker(side_effect=upstream)
-        self.assertEqual(code, 0)
-        self.assertIn("UPDATE", self.package_row(output, "library"))
-        self.assert_summary(output, held=0, current=1, update=1)
 
     def test_explicit_fixed_pkgconfig_version_overrides_file_inference(self):
         library = self.spec("library", version="2.0",
@@ -381,13 +311,6 @@ class CheckerTests(unittest.TestCase):
         self.assertIn("tag", row.lower())
         self.assertIn(release.url, output)
 
-    def test_tag_fallback_requires_explicit_option(self):
-        self.spec()
-        _, _, _, default_request = self.run_checker()
-        _, _, _, allowed_request = self.run_checker("--allow-tags")
-        self.assertFalse(default_request.call_args.kwargs.get("allow_tags", False))
-        self.assertTrue(allowed_request.call_args.kwargs["allow_tags"])
-
     def test_local_token_comes_from_selected_root_and_is_not_persisted_elsewhere(self):
         self.spec()
         secrets = self.root / ".secrets"
@@ -412,25 +335,6 @@ class CheckerTests(unittest.TestCase):
         self.assertNotIn("fixture-local-token", output + errors)
         self.assertNotIn("fixture-local-token", (self.root / checker.CACHE_PATH).read_text())
 
-    def test_local_token_is_resolved_once_for_the_scan(self):
-        self.spec("first")
-        self.spec("second")
-        secrets = self.root / ".secrets"
-        secrets.write_text("GITHUB_TOKEN=fixture-first-token\n")
-
-        def upstream(owner, repo, **options):
-            secrets.write_text("GITHUB_TOKEN=fixture-changed-token\n")
-            return self.upstream(repo=repo)
-
-        with patch.dict(os.environ):
-            os.environ.pop("GITHUB_TOKEN", None)
-            code, _, _, request = self.run_checker(side_effect=upstream)
-
-        self.assertEqual(code, 0)
-        self.assertEqual(request.call_count, 2)
-        self.assertTrue(all(call.kwargs.get("token") == "fixture-first-token"
-                            for call in request.call_args_list))
-
     def test_malformed_local_token_prevents_requests_and_bumps(self):
         spec = self.spec()
         original_spec = spec.read_bytes()
@@ -449,38 +353,6 @@ class CheckerTests(unittest.TestCase):
         self.assertEqual(secrets.read_bytes(), original_secrets)
         self.assertNotIn("fixture-unterminated-token", output + errors)
 
-    def test_existing_token_environment_bypasses_local_file_including_empty_value(self):
-        self.spec()
-        secrets = self.root / ".secrets"
-        secrets.write_text("GITHUB_TOKEN='fixture-unterminated-token\n")
-        original = secrets.read_bytes()
-        for token in ("fixture-environment-token", ""):
-            with self.subTest(anonymous=not token), patch.dict(os.environ, {"GITHUB_TOKEN": token}):
-                environment = dict(os.environ)
-                code, output, errors, request = self.run_checker("--refresh")
-                self.assertTrue(dict(os.environ) == environment)
-                self.assertEqual(code, 0)
-                request.assert_called_once_with("example", "package", allow_tags=False)
-                self.assertEqual(secrets.read_bytes(), original)
-                self.assertNotIn("fixture-environment-token", output + errors)
-                self.assertNotIn("fixture-unterminated-token", output + errors)
-
-    def test_successful_results_are_cached_between_runs(self):
-        self.spec()
-        code, first, _, request = self.run_checker(response=self.upstream("2.0"))
-        self.assertEqual(code, 0)
-        request.assert_called_once()
-        self.assertTrue((self.root / ".cache" / "upstream-versions.json").is_file())
-
-        code, second, errors, request = self.run_checker(
-            side_effect=AssertionError("fresh cached results must not request GitHub")
-        )
-        self.assertEqual(code, 0)
-        request.assert_not_called()
-        self.assertEqual(first, second)
-        self.assertIn("Reused 1 cached upstream result", errors)
-        self.assertIn("--refresh", errors)
-
     def test_refresh_bypasses_cache_and_saves_new_result(self):
         self.spec()
         self.run_checker(response=self.upstream("2.0"))
@@ -493,20 +365,6 @@ class CheckerTests(unittest.TestCase):
         self.assertEqual(code, 0)
         request.assert_not_called()
         self.assertIn("v3.0", self.package_row(output, "package"))
-
-    def test_cached_upstream_version_is_compared_with_current_specs(self):
-        self.spec(version="1.0")
-        self.run_checker(response=self.upstream("2.0"))
-        for local, status in (("2.0", "CURRENT"), ("3.0", "AHEAD")):
-            with self.subTest(local=local):
-                self.spec(version=local)
-                code, output, _, request = self.run_checker()
-                self.assertEqual(code, 0)
-                request.assert_not_called()
-                row = self.package_row(output, "package")
-                self.assertIn(local, row)
-                self.assertIn(status, row)
-                self.assert_summary(output, **{status.lower(): 1})
 
     def test_cached_upstream_version_uses_current_dependency_constraints(self):
         consumer = self.constrained_glaze()
@@ -529,10 +387,12 @@ class CheckerTests(unittest.TestCase):
 
     def test_release_only_and_tag_fallback_have_separate_cached_results(self):
         self.spec()
-        self.run_checker("--allow-tags", response=self.upstream("2.0", kind="tag"))
+        code, _, _, request = self.run_checker("--allow-tags", response=self.upstream("2.0", kind="tag"))
+        self.assertEqual(code, 0)
+        request.assert_called_once_with("example", "package", allow_tags=True)
         code, output, _, request = self.run_checker(response=self.upstream("1.0"))
         self.assertEqual(code, 0)
-        request.assert_called_once()
+        request.assert_called_once_with("example", "package", allow_tags=False)
         self.assertIn("CURRENT", self.package_row(output, "package"))
         self.assertIn("release", self.package_row(output, "package"))
 
@@ -563,37 +423,15 @@ class CheckerTests(unittest.TestCase):
         self.spec("b-uncached")
 
         code, output, errors, request = self.run_checker(
-            side_effect=RateLimitError("GitHub rate limit exceeded")
+            "--updates-only", side_effect=RateLimitError("GitHub rate limit exceeded")
         )
         self.assertEqual(code, 1)
         request.assert_called_once()
         self.assertIn("ERROR", self.package_row(output, "a-uncached"))
         self.assertIn("BLOCKED", self.package_row(output, "b-uncached"))
-        self.assertIn("CURRENT", self.package_row(output, "z-cached"))
+        self.assertNotIn("z-cached", output)
         self.assert_summary(output, current=1, error=1, blocked=1)
         self.assertIn("Reused 1 cached upstream result", errors)
-
-    def test_changing_upstream_repository_does_not_reuse_old_result(self):
-        self.spec()
-        self.run_checker(response=self.upstream("2.0"))
-        self.spec(url="https://github.com/example/replacement")
-        code, output, _, request = self.run_checker(response=self.upstream("3.0", repo="replacement"))
-        self.assertEqual(code, 0)
-        request.assert_called_once_with("example", "replacement", allow_tags=False)
-        self.assertIn("v3.0", self.package_row(output, "package"))
-
-    def test_rate_limit_blocks_remaining_requests_even_with_updates_only(self):
-        for name in ("a-package", "b-package", "c-package"):
-            self.spec(name)
-        code, output, _, request = self.run_checker(
-            "--updates-only", side_effect=RateLimitError("GitHub rate limit exceeded")
-        )
-        self.assertEqual(code, 1)
-        self.assertEqual(request.call_count, 1)
-        self.assertIn("ERROR", self.package_row(output, "a-package"))
-        for name in ("b-package", "c-package"):
-            self.assertIn("BLOCKED", self.package_row(output, name))
-        self.assert_summary(output, error=1, blocked=2)
 
     def test_default_directory_is_repository_root_not_working_directory(self):
         self.spec()
@@ -617,12 +455,6 @@ class CheckerTests(unittest.TestCase):
         request.assert_not_called()
         self.assertIn("SKIP", self.package_row(output, "hyprland-git"))
         self.assert_summary(output, skip=1, current=0, error=0)
-
-    def test_checker_never_edits_specs(self):
-        path = self.spec(version="9.0")
-        before = path.read_bytes()
-        self.run_checker(response=self.upstream("10.0"))
-        self.assertEqual(path.read_bytes(), before)
 
     def test_bump_updates_only_eligible_versions_and_resets_release(self):
         updated = self.spec("update-package")

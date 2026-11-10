@@ -164,7 +164,8 @@ python3 hyprland-git/update.py
 
 The first command previews and restores the changes. The second edits the spec;
 then run the planner and commit as above. The scheduled workflow does this every
-six hours, validates and commits the changes, and runs the builds directly.
+six hours. It validates the generated metadata and rebuild plan, commits the
+changes, and passes that exact commit to **Build RPMs** for validation and builds.
 New snapshots start at RPM release `1`.
 If `master` changes while the updater prepares a commit, it starts over from
 the new commit and regenerates the plan, with up to three attempts.
@@ -183,8 +184,9 @@ python3 scripts/rebuild.py build --owner giperborey --project Hyprland
 Run this from a clean checkout after pushing your prepared changes. Builds check
 the committed plan, then use that exact commit and the COPR project's enabled
 targets. Rerun the command, or start the **Build RPMs** workflow manually, to
-resume after a failure. Scheduled updates and build workflows do not overlap.
-Both workflows run the full validation suite before submitting COPR builds.
+resume after a failure. **Build RPMs** runs the full validation suite once on
+Fedora 44 and once on Fedora 45, then submits COPR builds only if both pass.
+Scheduled updates call this same workflow. COPR build jobs run one at a time.
 
 A failed build blocks its dependents. Other packages continue, and the workflow
 fails when they finish. Reruns reuse successful builds and retry failed ones.
@@ -214,7 +216,7 @@ Fedora 44. The Hyprland snapshot spec keeps its Lua 5.4 compatibility on Fedora
 
 The tooling needs Fedora RPM tools and macros, Git, `python3-rpm`, and
 `rpmdevtools`. The metadata updater needs Python 3.14.6 or newer. The
-[validation workflow](../.github/workflows/check.yml) lists the macro and test
+[build workflow](../.github/workflows/build.yml) lists the macro and test
 packages to install.
 
 Run the same checks as CI:
@@ -230,14 +232,14 @@ Tests use temporary Git repositories and simulated COPR responses. They do not
 submit builds. The full suite needs Fedora RPM tools and macros, Git, CMake 3.30
 or newer, a C++ compiler, `patch`, and `pkg-config`.
 
-CI runs tests and checks the dependency graph, release bumps, RPM specs, and
-shell syntax in both Fedora 44 and Fedora 45 containers. The shared check script
-expands spec scriptlets for both targets even when run locally on only one
-Fedora release. The build and update workflows run their planning tools on
-Fedora 44; RPM build targets come from COPR's enabled targets.
-CI runs when packaging files,
-tooling, tests, or workflows change. Documentation-only changes skip CI. Package
-compilation runs in COPR.
+**Build RPMs** validates pull requests and pushes to `master`. Pull requests run
+checks only; `master` builds after both Fedora validation jobs pass. Manual runs
+on other branches also run checks only. Markdown-only changes skip automatic CI.
+
+The checks cover tests, the dependency graph, release bumps, RPM specs, and shell
+syntax. The shared check script expands specs for both targets even when run
+locally on only one Fedora release. Planning runs on Fedora 44; package
+compilation runs in COPR using the project's enabled targets.
 
 The `hyprland-git` RPM also checks Bash completion against its unpacked source
 and newly built `hyprctl`, since upstream help contains stale and missing entries.

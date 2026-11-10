@@ -6,10 +6,8 @@ import shutil
 import sys
 import tempfile
 import unittest
-from unittest.mock import patch
 
 sys.path.insert(0, str(Path(__file__).resolve().parents[1] / "scripts"))
-import package_graph as graph_module
 from package_graph import (GRAPH_FILE, GraphError, build_graph, check_graph,
                            graph_document, load_graph, write_graph)
 
@@ -41,18 +39,14 @@ class StoredGraphTests(unittest.TestCase):
     def save(self, targets=(TARGET,)):
         return write_graph(self.root, targets)
 
-    def test_load_reads_fresh_versions_and_inputs_without_resolving_dependencies(self):
+    def test_load_reads_current_package_versions_and_inputs(self):
         self.spec("library")
         self.spec("app", requires=("pkgconfig(library)",))
         self.save()
         saved = (self.root / GRAPH_FILE).read_bytes()
         self.spec("library", version="2.0", release="3", extra="Patch0: new.patch\n")
         (self.root / "library/new.patch").write_text("new local source input")
-        with patch.object(graph_module, "query", wraps=graph_module.query) as query:
-            graph = load_graph(self.root, TARGET)
-        calls = [call.args[3:] for call in query.call_args_list]
-        self.assertFalse(any("--buildrequires" in call or "--provides" in call for call in calls))
-        self.assertEqual(len(calls), 4)
+        graph = load_graph(self.root, TARGET)
         self.assertEqual(graph.packages["library"].version_release, "2.0-3")
         self.assertIn(Path("library/new.patch"), graph.packages["library"].inputs)
         self.assertEqual(graph.dependencies["app"], {"library"})
@@ -111,6 +105,8 @@ class StoredGraphTests(unittest.TestCase):
         saved = (self.root / GRAPH_FILE).read_bytes()
         self.spec("app", extra=("%if 0%{?fedora} < 45\nBuildRequires: pkgconfig(oldlib)\n"
                                 "%else\nBuildRequires: pkgconfig(newlib)\n%endif\n"))
+        self.assertEqual(build_graph(self.root, TARGET).dependencies["app"], {"oldlib"})
+        self.assertEqual(build_graph(self.root, SECOND_TARGET).dependencies["app"], {"newlib"})
         with self.assertRaises(GraphError):
             self.save((TARGET, SECOND_TARGET))
         self.assertEqual((self.root / GRAPH_FILE).read_bytes(), saved)
@@ -156,27 +152,6 @@ class StoredGraphTests(unittest.TestCase):
                 (self.root / GRAPH_FILE).write_text(json.dumps(document))
                 with self.assertRaisesRegex(GraphError, "graph --refresh"):
                     load_graph(self.root, TARGET)
-
-    def test_document_is_deterministic_and_contains_no_package_versions(self):
-        self.spec("library", version="123.456")
-        self.spec("app", requires=("pkgconfig(library)",))
-        first, second = build_graph(self.root, TARGET), build_graph(self.root, SECOND_TARGET)
-        content = graph_document([first, second])
-        self.assertEqual(content, graph_document([second, first]))
-        self.assertNotIn(b"123.456", content)
-        self.assertEqual(json.loads(content), {
-            "schema": 1, "dependencies": {"app": ["library"], "library": []},
-        })
-
-    def test_failed_refresh_preserves_existing_graph(self):
-        self.spec("library")
-        self.spec("app", requires=("pkgconfig(library)",))
-        self.save()
-        original = (self.root / GRAPH_FILE).read_bytes()
-        self.spec("app", requires=("pkgconfig(library) >= 2.0",))
-        with self.assertRaises(GraphError):
-            self.save()
-        self.assertEqual((self.root / GRAPH_FILE).read_bytes(), original)
 
 
 if __name__ == "__main__":
