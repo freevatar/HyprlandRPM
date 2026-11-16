@@ -26,7 +26,7 @@ _hyprctl()
 {
     COMPREPLY=()
     local cur=${COMP_WORDS[COMP_CWORD]} executable=${COMP_WORDS[0]}
-    local options=1 follow=0 word candidate candidates= i
+    local options=1 follow=0 request_flags=0 word candidate candidates= i
     local -a args=()
     local -A seen=()
 
@@ -43,12 +43,19 @@ _hyprctl()
                     ((i += 1))
                     continue
                     ;;
-                -f|--follow) follow=1; continue ;;
-                -j|-r|-a|-c|--config|-q|--quiet) continue ;;
+                -f|--follow) follow=1; request_flags=1; continue ;;
+                -j|-r|-a|-c|--config) request_flags=1; continue ;;
+                -q|--quiet) continue ;;
             esac
         fi
         args+=("$word")
     done
+
+    # Hyprpaper requires an unprefixed request; these flags already make the
+    # command invalid, regardless of whether they precede or follow it.
+    if [[ ${args[0]-} == hyprpaper ]] && ((request_flags)); then
+        return 0
+    fi
 
     if ((options)) && [[ $cur == -* ]]; then
         candidates=$(_hyprctl_help_words "$executable" flags)
@@ -93,6 +100,13 @@ _hyprctl()
     fi
 
     while IFS= read -r candidate; do
+        if [[ ${args[0]-} == hyprpaper ]]; then
+            case $candidate in
+                -j|-r|-a|-c|--config|-f|--follow) continue ;;
+            esac
+        elif ((${#args[@]} == 0 && request_flags)) && [[ $candidate == hyprpaper ]]; then
+            continue
+        fi
         if [[ -n $candidate && $candidate == "$cur"* && -z ${seen[$candidate]+present} ]]; then
             COMPREPLY+=("$candidate")
             seen[$candidate]=1

@@ -33,6 +33,25 @@ def help_text(header: str, name: str) -> str:
     return match[1]
 
 
+def client_commands(source: str) -> set[str]:
+    # These requests are handled by the client rather than the compositor's IPC.
+    return matches(r'COMMAND\s*==\s*"(instances|hyprpaper|hyprsunset)"', function_body(source, "main"))
+
+
+def hyprpaper_rejected_flags(cli: str, paper: str) -> set[str]:
+    handler = function_body(paper, "makeHyprpaperRequest")
+    if not re.search(r'if\s*\(\s*!rq\.starts_with\("/hyprpaper "\)\s*\)', handler):
+        raise ValueError("hyprpaper request validation changed; review the completion check")
+
+    # Every flag encoded before the slash fails Hyprpaper's prefix check.
+    main = function_body(cli, "main")
+    conditions = [condition for condition, body in re.findall(r'if\s*\(([^\n]+)\)\s*\{([^{}]*)\}', main)
+                  if re.search(r'fullArgs\s*\+=\s*"[a-z]";', body)]
+    if not conditions or len(conditions) != len(re.findall(r'fullArgs\s*\+=', main)):
+        raise ValueError("unrecognized request flag encoding; review the completion check")
+    return {flag for condition in conditions for flag in matches(r'ARGS\[i\]\s*==\s*"(-[a-z-]+)"', condition)}
+
+
 def source_candidates(root: Path) -> dict[tuple[str, ...], set[str]]:
     ipc = (root / "src/ipc/s1/Commands.cpp").read_text()
     cli = (root / "hyprctl/src/main.cpp").read_text()
@@ -43,8 +62,7 @@ def source_candidates(root: Path) -> dict[tuple[str, ...], set[str]]:
     commands = matches(r'(?:legacyCommand\(|\.name\s*=\s*)"([a-z][a-z0-9_-]*)"', registry)
     if len(commands) != registry.count("socket.registerCommand("):
         raise ValueError("unrecognized or duplicate command registration; review the completion check")
-    # These requests are handled by the client rather than the compositor's IPC.
-    commands |= matches(r'fullRequest\.contains\("/(instances|hyprpaper|hyprsunset)"\)', cli)
+    commands |= client_commands(cli)
     flags = matches(r'ARGS\[i\]\s*==\s*"(-[a-z-]+)"', cli) - {"--"}
     output = function_body(ipc, "dispatchOutput")
     keyboard = function_body(ipc, "switchXKBLayoutRequest")
@@ -64,7 +82,7 @@ def source_candidates(root: Path) -> dict[tuple[str, ...], set[str]]:
         value = int(icon[1]) if icon[1] is not None else value + 1
         icons.add(str(value))
 
-    return {
+    expected = {
         ("",): commands,
         ("-",): flags - {"-f", "--follow"},
         ("rollinglog", "-"): flags,
@@ -82,6 +100,20 @@ def source_candidates(root: Path) -> dict[tuple[str, ...], set[str]]:
         # hyprsunset's server is a separate project; validate the client's help.
         ("hyprsunset", ""): matches(r'(?m)^    ([a-z]+)\b', help_text(header, "HYPRSUNSET_HELP")),
     }
+
+    rejected = hyprpaper_rejected_flags(cli, paper)
+    paper_flags = expected[("-",)] - rejected
+    expected[("hyprpaper", "-")] = paper_flags
+    for request in expected[("hyprpaper", "")]:
+        expected[("hyprpaper", request, "-")] = paper_flags
+    for flag in rejected:
+        expected[(flag, "")] = {"rollinglog"} if flag in {"-f", "--follow"} else commands - {"hyprpaper"}
+        for prefix in ((flag, "hyprpaper"), ("hyprpaper", flag)):
+            expected[(*prefix, "")] = set()
+            expected[(*prefix, "-")] = set()
+        for request in expected[("hyprpaper", "")]:
+            expected[("hyprpaper", request, flag, "-")] = set()
+    return expected
 
 
 def complete(completion: Path, executable: Path, words: tuple[str, ...]) -> set[str]:
@@ -119,7 +151,7 @@ def main() -> int:
         source = args.source_tree.resolve()
         completion = args.completion.resolve()
         executable = args.hyprctl.resolve()
-        # Reject accidentally testing a different installed hyprctl version.
+        # Verify that the help used by completion matches the selected source.
         header = (source / "hyprctl/src/Strings.hpp").read_text()
         result = subprocess.run([str(executable), "--help"], capture_output=True, text=True, timeout=5)
         if result.returncode not in (0, 1) or result.stderr or result.stdout.strip() != help_text(header, "USAGE").strip():

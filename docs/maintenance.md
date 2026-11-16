@@ -252,6 +252,9 @@ python3 hyprland-git/check-hyprctl-completion.py \
   --hyprctl /path/to/hyprctl
 ```
 
-The check covers built-in commands, flags, and literal arguments. It does not
-start a compositor or execute compositor commands. Hyprsunset is a separate
-server, so its subcommands are checked against Hyprctl's help text.
+The check covers built-in commands, flags, and literal arguments, including
+Hyprpaper's rejection of flags that prefix its request. It checks suggestions
+with those flags before and after the command, and requires review if upstream
+changes how it encodes or accepts them. It does not start a compositor or execute
+compositor commands. Hyprsunset is a separate server, so its subcommands are
+checked against Hyprctl's help text.
