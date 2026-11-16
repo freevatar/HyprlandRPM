@@ -1,5 +1,5 @@
 %global upstream_version 0.57.2
-%global snapshot 12
+%global snapshot 13
 
 %global lua54_compat 0
 %global lua_min_version 5.5
@@ -10,18 +10,18 @@
 %global lua_next_version 5.5
 %endif
 
-%global hyprland_commit 84b5122981c64185674fd9f43a4820dfe425e205
+%global hyprland_commit f3e076844484255b77629acc5c75379817c405a8
 %global hyprland_shortcommit %(c=%{hyprland_commit}; echo ${c:0:7})
-%global hyprland_commits 8105
-%global hyprland_commit_date Sun Nov 15 13:22:38 2026
-%global hyprland_commit_message_b64 aW5wdXQ6IHJlcGxhY2UgZGV2aWNlIHRhZ3Mgd2hlbiBhcHBseWluZyBjb25maWd1cmF0aW9u
+%global hyprland_commits 8109
+%global hyprland_commit_date Mon Nov 16 17:06:47 2026
+%global hyprland_commit_message_b64 aW5wdXQ6IGRvbid0IGZvY3VzIHdpbmRvd3Mgb3V0c2lkZSBhIHBvcHVwIGdyYWI=
 
 %global udis86_commit 5336633af70f3917760a6d441ff02d93477b0c86
 %global udis86_shortcommit %(c=%{udis86_commit}; echo ${c:0:7})
 
 Name:           hyprland-git
 Version:        %{upstream_version}^%{snapshot}.git%{hyprland_shortcommit}
-Release:        %autorelease -b2
+Release:        %autorelease
 Summary:        Dynamic tiling Wayland compositor that doesn't sacrifice on its looks
 
 # Hyprland: BSD-3-Clause
