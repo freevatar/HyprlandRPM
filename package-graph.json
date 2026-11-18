@@ -4,6 +4,7 @@
       "hyprutils",
       "hyprwayland-scanner"
     ],
+    "ghostty": [],
     "glaze": [],
     "hyprcursor": [
       "hyprlang"

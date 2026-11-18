@@ -5,7 +5,7 @@ Credit to https://github.com/solopasha - original packaging comes from his https
 This repo has since changed a lot:
 * added update and build tools with automatic dependency graph resolution
 * bash completion
-* package list cut to Hypr-only packages
+* package list focused on Hyprland and its companion tools
 * many specs refactored
 
 ## Description
@@ -17,6 +17,9 @@ This repo packages `hyprland-git` snapshots and companion packages for `Fedora 4
 Enable the [COPR repository](https://copr.fedorainfracloud.org/coprs/giperborey/Hyprland/) and install Hyprland:
 1. `sudo dnf copr enable giperborey/Hyprland`
 2. `sudo dnf in hyprland-git`
+
+Installing or upgrading `hyprland-git` also installs the [Ghostty terminal emulator](https://github.com/ghostty-org/ghostty).
+The default configuration opens Ghostty with `Super` + `Q`.
 
 ## Updates
 

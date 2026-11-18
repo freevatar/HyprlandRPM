@@ -21,7 +21,7 @@
 
 Name:           hyprland-git
 Version:        %{upstream_version}^%{snapshot}.git%{hyprland_shortcommit}
-Release:        %autorelease
+Release:        %autorelease -b2
 Summary:        Dynamic tiling Wayland compositor that doesn't sacrifice on its looks
 
 # Hyprland: BSD-3-Clause
@@ -40,6 +40,7 @@ Source4:        hyprctl.bash
 Source5:        check-hyprctl-completion.py
 Patch0:         escape-version-metadata.patch
 Patch1:         lua54-hyprpm.patch
+Patch2:         ghostty-default-terminal.patch
 
 # Build tools
 BuildRequires:  cmake >= 3.30
@@ -112,6 +113,7 @@ Conflicts:      hyprland
 Obsoletes:      hyprland-git-uwsm < 0.57.0^1.git0aa6745-2
 
 Requires:       aquamarine%{?_isa} >= 0.15.0
+Requires:       ghostty
 Requires:       hyprcursor%{?_isa} >= 0.1.7
 Requires:       hyprgraphics%{?_isa} >= 0.5.1
 Requires:       hyprlang%{?_isa} >= 0.6.7
@@ -119,7 +121,6 @@ Requires:       hyprutils%{?_isa} >= 0.14.3
 Requires:       xorg-x11-server-Xwayland%{?_isa}
 
 # Used by the default configuration.
-Recommends:     kitty
 Recommends:     hyprland-guiutils
 
 # Logind needs polkit to create a graphical session.
@@ -151,6 +152,10 @@ building software and plugins against %{name}.
 %prep
 %autosetup -n Hyprland-%{hyprland_commit} -N
 %patch -P 0 -p1
+%patch -P 2 -p1
+
+# Safe mode uses the same default terminal as the example config.
+sed -i '/TXT_KEY_SAFE_MODE_DESCRIPTION,/,/);/s/\<[Kk]itty\>/Ghostty/g' src/i18n/Engine.cpp
 
 # Replace the empty Git submodule directory with the exact pinned source.
 rm -rf subprojects/udis86
@@ -230,6 +235,7 @@ install -Dpm0644 %{SOURCE4} \
     %{buildroot}%{bash_completions_dir}/hyprctl
 
 %check
+grep -Eq '^local terminal[[:blank:]]*=[[:blank:]]*"ghostty"' %{buildroot}%{_datadir}/hypr/hyprland.lua
 bash -n %{SOURCE4}
 python3 %{SOURCE5} --source-tree . \
     --completion %{buildroot}%{bash_completions_dir}/hyprctl \

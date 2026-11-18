@@ -24,6 +24,13 @@ Run these commands from the repository root.
    upstream, verify remaining patches, and update build requirements as needed.
    The checker follows releases and tags; review Aquamarine's post-release Git
    commits separately and update its pinned upstream patches when needed.
+   Ghostty publishes stable versions as Git tags. Use `--allow-tags` to check
+   for updates. Pin a compatible Zig patch release from the major and minor
+   series in Ghostty's `build.zig.zon`. Verify both upstream archives against
+   their Minisign signatures and update `ghostty/sources.sha256`.
+   To prepare the source RPM locally, run `rpkg --path ghostty srpm`.
+   It runs `zig build --fetch=all` and includes the resulting `zig-pkg/`
+   directory as one archive for the offline Fedora builds.
    If package dependencies changed, run `python3 scripts/rebuild.py graph --refresh`.
 
 4. Prepare dependent release bumps and validate the whole update:
