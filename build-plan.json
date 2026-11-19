@@ -1,9 +1,9 @@
 {
   "schema": 1,
-  "base": "c9e108adec88055a3bec9066b4a0597acbd10a0c",
+  "base": "7ab6d6270483a72e82c86110b6d7a6f259d5eedc",
   "targets": [
     "fedora-44-x86_64",
     "fedora-45-x86_64"
   ],
-  "inputs_sha256": "a67bf2b480723917adfefc16ea65978dc4b57ce3e4bc1997d5d40e60d0e15fee"
+  "inputs_sha256": "a2cadd5494f9cbc5032f1e831666c5d488e3328ed604cefb816c09a74ebb7d8f"
 }
