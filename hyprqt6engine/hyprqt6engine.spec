@@ -1,6 +1,6 @@
 Name:           hyprqt6engine
 Version:        0.1.0
-Release:        %autorelease -b17
+Release:        %autorelease -b18
 Summary:        Qt6 theme provider for Hyprland
 
 License:        BSD-3-Clause

@@ -1,6 +1,6 @@
 Name:           aquamarine
 Version:        0.16.0
-Release:        %autorelease -b4
+Release:        %autorelease -b5
 Summary:        Lightweight Linux rendering backend library
 
 # Aquamarine is BSD-3-Clause; generated Wayland protocol bindings are MIT.
@@ -8,7 +8,7 @@ License:        BSD-3-Clause AND MIT
 URL:            https://github.com/hyprwm/aquamarine
 Source:         %{url}/archive/v%{version}/%{name}-%{version}.tar.gz
 
-# All upstream commits after v0.16.0 through 9887f39574f2afeae3aeb6687db6cd0c030ccf94.
+# All upstream commits after v0.16.0 through 8126552b0d3c1717f92867772ec573d3d2ae8a20.
 # internal: fix multi-GPU buffer fallbacks and invalid modifier comparisons
 Patch0:         %{url}/commit/ad4484335fc327a6cf010f455ae258c397861ee0.patch
 # drm: synchronously recheck CRTCs on connector enable state change
@@ -21,6 +21,28 @@ Patch3:         %{url}/commit/801f25ffc581ef6796e9b0721264d50ebfdb23b1.patch
 Patch4:         %{url}/commit/a5cdfb3f53f3b9422cff7548649e83cbeae7cb37.patch
 # DRM: allow output tests while an asynchronous commit is pending
 Patch5:         %{url}/commit/9887f39574f2afeae3aeb6687db6cd0c030ccf94.patch
+# nix: propagate dependencies used by public headers
+Patch6:         %{url}/commit/a43be73731601deb649a2dc94bef5a60100d132e.patch
+# nix: drop the redundant Pixman dependency
+Patch7:         %{url}/commit/7c1c55b2a76ddb9f6602f8c0886ecf1b899529f9.patch
+# renderer/egl: avoid making the same context current twice
+Patch8:         %{url}/commit/e36d13c12982ec51f15ef4a6e3d10efbc25e7078.patch
+# drm/atomic: preserve the output format across asynchronous commits
+Patch9:         %{url}/commit/7099ca2eeda9851841822f4a101786b0ac9856a5.patch
+# drm/edid: report HLG support
+Patch10:        %{url}/commit/90cd015f5abc1863402d25659df4b061fbaadccf.patch
+# renderer/sync: wait on acquire fences in the readback context
+Patch11:        %{url}/commit/d542cb8a241a138e8166d525aff1308657e75b03.patch
+# renderer/sync: release the final blit fence during teardown
+Patch12:        %{url}/commit/96eb66553cbde7c8330b33024376c392af3e9bb9.patch
+# drm: skip duplicate plane format modifiers
+Patch13:        %{url}/commit/d2aca076f2b1938347bb42ed972b01e3e24ce5d3.patch
+# wayland: preserve swapchain allocation options on commit
+Patch14:        %{url}/commit/3bd9ae51579d9c10cfc5a67342444686bb021068.patch
+# docs: add upstream AGENTS.md
+Patch15:        %{url}/commit/2e77bc4c96bf45bcc5b167dd5da5556ed6b882ce.patch
+# backend: drop the session when nested without DRM
+Patch16:        %{url}/commit/8126552b0d3c1717f92867772ec573d3d2ae8a20.patch
 
 # https://fedoraproject.org/wiki/Changes/EncourageI686LeafRemoval
 ExcludeArch:    %{ix86}
