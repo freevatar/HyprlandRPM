@@ -29,8 +29,9 @@ Run these commands from the repository root.
    series in Ghostty's `build.zig.zon`. Verify both upstream archives against
    their Minisign signatures and update `ghostty/sources.sha256`.
    To prepare the source RPM locally, run `rpkg --path ghostty srpm`.
-   It runs `zig build --fetch=all` and includes the resulting `zig-pkg/`
-   directory as one archive for the offline Fedora builds.
+   It collects the dependencies pinned in the release's Flatpak manifest into
+   one archive. The Fedora x86_64 build imports and verifies them with Zig
+   offline. The COPR source worker can run on ARM64.
    If package dependencies changed, run `python3 scripts/rebuild.py graph --refresh`.
 
 4. Prepare dependent release bumps and validate the whole update:

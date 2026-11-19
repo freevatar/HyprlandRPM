@@ -4,7 +4,7 @@
 
 Name:           ghostty
 Version:        1.4.0
-Release:        %autorelease -b2
+Release:        %autorelease -b3
 Summary:        GPU-accelerated terminal emulator for Wayland and X11
 
 License:        MIT AND OFL-1.1 AND Apache-2.0 AND BSD-2-Clause AND BSD-3-Clause AND CC0-1.0 AND MPL-2.0 AND Unicode-3.0
@@ -13,7 +13,7 @@ Source0:        https://release.files.ghostty.org/%{version}/%{name}-%{version}.
 # Fedora 44 and 45 ship Zig 0.16. Ghostty 1.4 requires 0.17 to compile.
 Source1:        https://ziglang.org/download/%{zig_version}/%{zig_toolchain}.tar.xz
 Source2:        sources.sha256
-Source3:        prepare-zig-cache.sh
+Source3:        prepare-zig-sources.py
 ExclusiveArch:  x86_64
 
 BuildRequires:  desktop-file-utils
@@ -42,14 +42,29 @@ BuildRequires:  pkgconfig(zlib)
 Ghostty is a GPU-accelerated terminal emulator with a native GTK interface,
 tabs, split panes, and shell integration.
 
-# rpkg creates this source archive when assembling the source RPM.
-# {{{ if [ -n "${OUTDIR:-}" ]; then bash "$(dirname "$INPUT_PATH")/prepare-zig-cache.sh" "$INPUT_PATH" "$OUTDIR" >&2; fi }}}
+# COPR can prepare the source RPM on a different architecture.
+# {{{ if [ -n "${OUTDIR:-}" ]; then python3 "$(dirname "$INPUT_PATH")/prepare-zig-sources.py" "$INPUT_PATH" "$OUTDIR" >&2; fi }}}
 %sourcelist
 %{name}-%{version}-deps.tar.zst
 
 %prep
 (cd "%{_sourcedir}" && sha256sum --check --strict "%{SOURCE2}")
 %setup -q -a 1 -a 4
+
+# Import each local archive with the target compiler. Zig writes its computed
+# package ID under zig-pkg. The release manifest supplies the expected ID.
+export ZIG_GLOBAL_CACHE_DIR="$PWD/.zig-global-cache"
+mkdir zig-import
+(
+    cd zig-import
+    touch build.zig
+    for archive in ../zig-sources/*/*; do
+        directory=${archive%/*}
+        expected=${directory##*/}
+        "../%{zig_toolchain}/zig" fetch --save="$expected" --pkg-dir ../zig-pkg "$archive"
+        test -d "../zig-pkg/$expected" || { echo "Unexpected Zig package ID for $archive" >&2; exit 1; }
+    done
+)
 
 %build
 export PATH="$PWD/%{zig_toolchain}:$PATH"
