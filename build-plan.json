@@ -1,6 +1,6 @@
 {
   "schema": 1,
-  "base": "310534619376dacf2f6d93d3c791451fec991fa9",
+  "base": "32732d09b46d2e81b9591f204500791347f2e226",
   "targets": [
     "fedora-44-x86_64",
     "fedora-45-x86_64"
