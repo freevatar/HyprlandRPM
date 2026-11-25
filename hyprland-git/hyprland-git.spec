@@ -21,7 +21,7 @@
 
 Name:           hyprland-git
 Version:        %{upstream_version}^%{snapshot}.git%{hyprland_shortcommit}
-Release:        %autorelease -b2
+Release:        %autorelease -b3
 Summary:        Dynamic tiling Wayland compositor that doesn't sacrifice on its looks
 
 # Hyprland: BSD-3-Clause
@@ -44,6 +44,9 @@ Patch2:         ghostty-default-terminal.patch
 
 # Build tools
 BuildRequires:  cmake >= 3.30
+# Match the Glaze range requested by hyprpm and start-hyprland.
+BuildRequires:  cmake(glaze) >= 7
+BuildRequires:  cmake(glaze) < 8
 BuildRequires:  gcc-c++
 BuildRequires:  glaze-static
 BuildRequires:  ninja-build
