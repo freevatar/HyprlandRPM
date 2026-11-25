@@ -1,6 +1,6 @@
 Name:           hyprland-guiutils
 Version:        0.2.2
-Release:        %autorelease -b12
+Release:        %autorelease -b13
 Summary:        Hyprland Qt/qml utility apps
 
 License:        BSD-3-Clause

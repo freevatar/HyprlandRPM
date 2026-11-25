@@ -1,0 +1,7 @@
+--- a/CMakeLists.txt
++++ b/CMakeLists.txt
+@@ -72,3 +72,3 @@
+ set_target_properties(aquamarine PROPERTIES VERSION ${AQUAMARINE_VERSION}
+-                                            SOVERSION 15)
++                                            SOVERSION 15.copr1)
+ target_link_libraries(aquamarine OpenGL::EGL OpenGL::GLES3 PkgConfig::deps Threads::Threads)

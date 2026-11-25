@@ -22,8 +22,10 @@ Run these commands from the repository root.
    Leave `HELD` packages alone until their consumers support the new version.
    Review the release changes and `git diff`: remove backports already included
    upstream, verify remaining patches, and update build requirements as needed.
-   The checker follows releases and tags; review Aquamarine's post-release Git
-   commits separately and update its pinned upstream patches when needed.
+   Aquamarine and xdg-desktop-portal-hyprland use pinned Git snapshots.
+   To refresh either package, update its full commit and the number of commits
+   since its base tag in `Version`. When moving back to a tagged release, restore
+   the tag archive and its unpack directory in the same change.
    Ghostty publishes stable versions as Git tags. Use `--allow-tags` to check
    for updates. Pin a compatible Zig patch release from the major and minor
    series in Ghostty's `build.zig.zon`. Verify both upstream archives against

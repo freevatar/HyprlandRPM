@@ -1,7 +1,7 @@
 %global debug_package %{nil}
 
 Name:           glaze
-Version:        7.4.0
+Version:        9.1.0
 Release:        %autorelease
 Summary:        Extremely fast, in memory, JSON and interface library
 
@@ -9,7 +9,7 @@ License:        MIT
 URL:            https://github.com/stephenberry/glaze
 Source:         %{url}/archive/v%{version}/%{name}-%{version}.tar.gz
 
-BuildRequires:  cmake
+BuildRequires:  cmake >= 3.31
 BuildRequires:  gcc-c++
 
 %description
